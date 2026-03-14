@@ -15,19 +15,18 @@ class NIC: public Ethernet, public Conditional_Data_Observed<Buffer<Ethernet::Fr
         NIC();
     public:
         ~NIC();
-    int send(Address dst, Protocol_Number prot, const void * data, unsigned int size);
-    int receive(Address * src, Protocol_Number * prot, void * data, unsigned int size);
-    Buffer<Ethernet::Frame> * alloc(Address dst, Protocol_Number prot, unsigned int size);
-    int send(Buffer<Ethernet::Frame> * buf);
-    void free(Buffer<Ethernet::Frame> * buf);
-    int unmarshal(Buffer<Ethernet::Frame> * buf, Address * src, Address * dst, void * data,
-    unsigned int size);
-    const Address & address();
-    void address(Address address);
-    const Statistics & statistics();
-    void attach(Observer * obs, Protocol_Number prot); // possibly inherited
-    void detach(Observer * obs, Protocol_Number prot); // possibly inherited
-  private:
-    Statistics _statistics;
-    Buffer<Ethernet::Frame> _buffer[BUFFER_SIZE];
+        int send(Address dst, Protocol_Number prot, const void * data, unsigned int size);
+        int receive(Address * src, Protocol_Number * prot, void * data, unsigned int size);
+        Buffer<Ethernet::Frame> * alloc(Address dst, Protocol_Number prot, unsigned int size);
+        int send(Buffer<Ethernet::Frame> * buf);
+        void free(Buffer<Ethernet::Frame> * buf);
+        int unmarshal(Buffer<Ethernet::Frame> * buf, Address * src, Address * dst, void * data, unsigned int size);
+        const Address & address();
+        void address(Address address);
+        const Statistics & statistics();
+        void attach(Observer * obs, Protocol_Number prot); // possibly inherited
+        void detach(Observer * obs, Protocol_Number prot); // possibly inherited
+    private:
+        Statistics _statistics;
+        Buffer<Ethernet::Frame> _buffer[BUFFER_SIZE];
 };
