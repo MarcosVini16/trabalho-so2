@@ -14,7 +14,7 @@ class Communicator: public Concurrent_Observer<typename Channel::Observer::Obser
             _channel->attach(this, address);
         }
 
-        ~Communicator_Common() { Channel::detach(this, _address); }
+        ~Communicator() { Channel::detach(this, _address); }
 
         bool send(const Message * message) {
             return (_channel->send(_address, Channel::Address::BROADCAST, message->data(), message->size()) > 0);

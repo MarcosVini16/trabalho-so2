@@ -15,4 +15,3 @@ clean:
 
 run: $(TARGET)
 	./$(TARGET)
-
