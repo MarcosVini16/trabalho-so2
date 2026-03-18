@@ -5,10 +5,10 @@ template <typename Engine>
 class NIC: public Ethernet, public Conditional_Data_Observed<Buffer<Ethernet::Frame>, Ethernet::Protocol>, private Engine {
     public:
         static const unsigned int BUFFER_SIZE = Traits<NIC>::SEND_BUFFERS + Traits<NIC>::RECEIVE_BUFFERS;
-        typedef Ethernet::Address Address;
-        typedef Ethernet::Protocol Protocol_Number;
-        typedef Conditional_Data_Observer<Buffer<Ethernet::Frame>, Ethernet::Protocol> Observer;
-        typedef Conditionally_Data_Observed<Buffer<Ethernet::Frame>, Ethernet::Protocol> Observed;
+        using Address = Ethernet::Address;
+        using Protocol_Number = Ethernet::Protocol;
+        using Observer = Conditional_Data_Observer<Buffer<Ethernet::Frame>, Ethernet::Protocol>;
+        using Observed = Conditionally_Data_Observed<Buffer<Ethernet::Frame>, Ethernet::Protocol>;
     protected:
         NIC();
     public:

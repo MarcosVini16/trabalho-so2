@@ -3,11 +3,11 @@ class Message; // Forward declaration of Message class (need to be defined elsew
 template <typename Channel> // Forward declaration of Channel template class (need to be defined elsewhere)
 class Communicator: public Concurrent_Observer<typename Channel::Observer::Observed_Data, typename Channel::Observer::Observing_Condition> {
 
-    typedef Concurrent_Observer<typename Channel::Observer::Observed_Data, typename Channel::Observer::Observing_Condition> Observer;
+    using Observer = Concurrent_Observer<typename Channel::Observer::Observed_Data, typename Channel::Observer::Observing_Condition>;
 
     public:
-        typedef typename Channel::Buffer Buffer;
-        typedef typename Channel::Address Address;
+        using Buffer = typename Channel::Buffer;
+        using Address = typename Channel::Address;
 
     public:
         Communicator(Channel * channel, Address address): _channel(channel), _address(address) {
@@ -30,9 +30,7 @@ class Communicator: public Concurrent_Observer<typename Channel::Observer::Obser
         }
 
     private:
-        void update(typename Channel::Observed * obs, typename
-
-        Channel::Observer::Observing_Condition c, Buffer * buf) {
+        void update(typename Channel::Observed * obs, typename Channel::Observer::Observing_Condition c, Buffer * buf) {
             Observer::update(c, buf); // releases the thread waiting for data
         }
 

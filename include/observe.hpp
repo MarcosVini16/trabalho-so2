@@ -12,10 +12,9 @@ template<typename D, typename C = void> class ConcurrentObserved {
     friend class ConcurrentObserver<D, C>; // to allow ConcurrentObserver to call update() and access _observers
 
     public:
-        // Replacing old typedefs with type aliases for better readability
         using ObservedData = D;
         using ObservingCondition = C;
-        typedef Ordered_List<ConcurrentObserver<D, C>, C> Observers;
+        using Observers = Ordered_List<ConcurrentObserver<D, C>, C>;
     
     public:
         ConcurrentObserved() {}

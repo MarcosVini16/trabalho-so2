@@ -4,11 +4,11 @@ class Protocol: private typename NIC::Observer {
 
     public:
         static const typename NIC::Protocol_Number PROTO = Traits<Protocol>::ETHERNET_PROTOCOL_NUMBER;
-        typedef typename NIC::Buffer Buffer;
-        typedef typename NIC::Address Physical_Address;
-        typedef XXX Port;
-        typedef Conditional_Data_Observer<Buffer<Ethernet::Frame>, Port> Observer;
-        typedef Conditionally_Data_Observed<Buffer<Ethernet::Frame>, Port> Observed;
+        using Buffer = typename NIC::Buffer;
+        using Physical_Address = typename NIC::Address;
+        using Port = XXX; // define Port type (could be an integer, enum, etc.)
+        using Observer = Conditional_Data_Observer<Buffer, Port>;
+        using Observed = Conditionally_Data_Observed<Buffer, Port>;
 
         class Address {
         public:
