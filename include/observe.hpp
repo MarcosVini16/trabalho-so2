@@ -1,6 +1,8 @@
 // Fundamentals for Observer X Observed
-#include <semaphore>
 // (For more info on Observer Pattern: https://refactoring.guru/design-patterns/observer)
+#include "semaphore.hpp"
+#include "list.hpp"
+
 template <typename T, typename Condition = void> class ConditionalDataObserver;
 template <typename T, typename Condition = void> class ConditionallyDataObserved;
 

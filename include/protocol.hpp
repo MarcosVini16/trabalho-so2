@@ -1,4 +1,5 @@
 // Communication Protocol
+
 template <typename NIC>
 class Protocol: private typename NIC::Observer {
 
@@ -7,7 +8,7 @@ class Protocol: private typename NIC::Observer {
         using Buffer = typename NIC::Buffer;
         using Physical_Address = typename NIC::Address;
         using Port = XXX; // define Port type (could be an integer, enum, etc.)
-        using Observer = Conditional_Data_Observer<Buffer, Port>;
+        using Observer = ConditionalDataObserver<Buffer, Port>;
         using Observed = Conditionally_Data_Observed<Buffer, Port>;
 
         class Address {
