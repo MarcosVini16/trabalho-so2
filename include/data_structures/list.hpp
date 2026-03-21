@@ -1,22 +1,25 @@
 #include <mutex>
 #include <list>
 
+/*
+ * A simple thread-safe list implementation.
+ */
 template<typename T> class List{
     public:
         List() {}
         ~List() {}
 
-        void insert(T* obj) {
+        void insert(T obj) {
             std::lock_guard<std::mutex> lock(_mutex);
             _list.push_back(obj);
         }
 
-        T * remove() {
+        T remove() {
             std::lock_guard<std::mutex> lock(_mutex);
             if(_list.empty()) {
                 throw std::runtime_error("List is empty");
             }
-            T * obj = _list.front();
+            T obj = _list.front();
             _list.pop_front();
             return obj;
         }
@@ -32,6 +35,6 @@ template<typename T> class List{
         }
 
     private:
-        std::list<T *> _list;
+        std::list<T> _list;
         std::mutex _mutex;
 };
