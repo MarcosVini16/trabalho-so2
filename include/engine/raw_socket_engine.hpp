@@ -9,8 +9,8 @@
  */
 class RawSocketEngine : public Engine {
     public:
-        Raw_Socket_Engine(const std::string& iface);
-        ~Raw_Socket_Engine();
+        RawSocketEngine(const std::string& iface);
+        ~RawSocketEngine();
 
     protected:
         /*
