@@ -6,7 +6,7 @@
 #include <iostream>
 
 TEST(ListTest, InsertAndRemove) {
-    List<int> list;
+    List<int*> list;
     EXPECT_TRUE(list.empty());
 
     int * a = new int(1);
@@ -27,13 +27,13 @@ TEST(ListTest, InsertAndRemove) {
 }
 
 TEST(ListTest, RemoveFromEmptyList) {
-    List<int> list;
+    List<int*> list;
     EXPECT_TRUE(list.empty());
     EXPECT_THROW(list.remove(), std::runtime_error);
 }
 
 TEST(ListTest, ConcurrentAccess) {
-    List<int> list;
+    List<int*> list;
     const int num_threads = 10;
     const int num_iterations = 1000;
 
