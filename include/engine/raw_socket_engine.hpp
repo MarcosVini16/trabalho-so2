@@ -1,4 +1,3 @@
-// raw_socket_engine.hpp
 #pragma once
 #include "engine.hpp"
 #include <string>
@@ -8,7 +7,7 @@
 /**
  * @brief An Engine for handling raw socket communication
  */
-class Raw_Socket_Engine : public Engine {
+class RawSocketEngine : public Engine {
     public:
         Raw_Socket_Engine(const std::string& iface);
         ~Raw_Socket_Engine();
