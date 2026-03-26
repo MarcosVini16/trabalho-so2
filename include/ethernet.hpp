@@ -3,6 +3,9 @@
 #include <cstdint>
 #include <cstring>
 
+/*
+ * Represents the Ethernet protocol.
+ */
 class Ethernet {
     public:
         // The max payload size of an Ethernet frame.
