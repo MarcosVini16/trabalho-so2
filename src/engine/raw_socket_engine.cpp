@@ -1,7 +1,9 @@
 // engine_raw.cpp
 #include "../../include/engine/raw_socket_engine.hpp"
+#include "../../include/ethernet.hpp"
 #include <sys/socket.h>
 #include <linux/if_packet.h>
+#include <arpa/inet.h>
 #include <net/ethernet.h>
 #include <net/if.h>
 #include <sys/ioctl.h>
@@ -16,12 +18,14 @@ RawSocketEngine::RawSocketEngine(const std::string& iface)
 {
     // Open a raw socket, requires root privileges
     _fd = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
+    //
     if(_fd < 0)
         throw std::runtime_error("socket() falhou — rode como root");
 
     // Bind the socket to the specified interface (e.g., "eth0")
     struct ifreq ifr{};
     std::strncpy(ifr.ifr_name, iface.c_str(), IFNAMSIZ - 1);
+    // If the interface index cannot be obtained, throw an error
     if(ioctl(_fd, SIOCGIFINDEX, &ifr) < 0)
         throw std::runtime_error("interface não encontrada: " + iface);
 
@@ -72,9 +76,15 @@ void RawSocketEngine::_receive_loop() {
     }
 }
 
+void RawSocketEngine::_handle(void* buf, size_t len) {
+    // For demonstration, we just print the length of the received packet
+    std::cout << "Received packet of length: " << len << " bytes" << std::endl;
+    // In a real implementation, you would parse the Ethernet frame and handle it accordingly
+}
+
 int main() {
     try {
-        RawSocketEngine engine("eth0");
+        RawSocketEngine engine("enp0s1"); // Substitua "enp0s1" pelo nome da sua interface de rede
         // O engine agora está rodando e processando pacotes
         std::this_thread::sleep_for(std::chrono::seconds(10)); // exemplo de tempo de execução
     } catch(const std::exception& ex) {

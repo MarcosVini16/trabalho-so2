@@ -27,9 +27,16 @@ class RawSocketEngine : public Engine {
          */
         void _handle(void* buf, size_t len) override;
 
+        /*
+         * @brief Internal loop for receiving data from the raw socket
+         * This function runs in a separate thread and continuously listens for incoming packets.
+         * When a packet is received, it calls the _handle() method to process it.
+         */
+        void _receive_loop();
+
     private:
         int _fd; // File descriptor for the raw socket
-        std::string _interface; // Network interface to bind to (e.g., "eth0", "wlan0", etc.)
+        std::string _iface; // Network interface to bind to (e.g., "eth0", "wlan0", etc.)
         std::thread _thread; // Thread for listening to incoming data
         std::atomic<bool> _running; // Flag to control the listening thread
 };
