@@ -1,7 +1,7 @@
 // Network
-class Ethernet; // all necessary definitions and formats
-template <typename Engine>
+#include "ethernet.hpp"
 
+template <typename Engine>
 class NIC: public Ethernet, public Conditional_Data_Observed<Buffer<Ethernet::Frame>, Ethernet::Protocol>, private Engine {
     public:
         static const unsigned int BUFFER_SIZE = Traits<NIC>::SEND_BUFFERS + Traits<NIC>::RECEIVE_BUFFERS;
