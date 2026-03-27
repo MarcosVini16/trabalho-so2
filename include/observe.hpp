@@ -1,7 +1,7 @@
 // Fundamentals for Observer X Observed
 // (For more info on Observer Pattern: https://refactoring.guru/design-patterns/observer)
-#include "semaphore.hpp"
-#include "list.hpp"
+#include "utils/semaphore.hpp"
+#include "utils/list.hpp"
 
 template <typename T, typename Condition = void> class ConditionalDataObserver;
 template <typename T, typename Condition = void> class ConditionallyDataObserved;
@@ -45,6 +45,10 @@ template<typename D, typename C = void> class ConcurrentObserved {
     private:
         Observers _observers;
 };
+
+/*
+ * A concurrent observer for observing changes in observed data.
+ */
 template<typename D, typename C> class ConcurrentObserver {
     friend class ConcurrentObserved<D, C>; // to allow ConcurrentObserved to call update() and access _data and _semaphore
     public:

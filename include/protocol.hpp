@@ -1,67 +1,128 @@
 // Communication Protocol
-
-template <typename NIC>
-class Protocol: private typename NIC::Observer {
-
+#include "ethernet.hpp"
+#include "observe.hpp"
+#include "utils/buffer.hpp"
+#include "utils/traits.hpp"
+template<typename NIC>
+class Protocol
+    : private Conditional_Data_Observer<Buffer<Ethernet::Frame>,
+                                        Ethernet::Protocol>,
+      public  Conditionally_Data_Observed<Buffer<Ethernet::Frame>,
+                                          uint16_t>
+{
     public:
-        static const typename NIC::Protocol_Number PROTO = Traits<Protocol>::ETHERNET_PROTOCOL_NUMBER;
-        using Buffer = typename NIC::Buffer;
+        using Port             = uint16_t;
         using Physical_Address = typename NIC::Address;
-        using Port = XXX; // define Port type (could be an integer, enum, etc.)
-        using Observer = ConditionalDataObserver<Buffer, Port>;
-        using Observed = Conditionally_Data_Observed<Buffer, Port>;
+        using Buffer           = ::Buffer<Ethernet::Frame>;
+        using Observer         = Conditional_Data_Observer<Buffer, Port>;
+        using Observed         = Conditionally_Data_Observed<Buffer, Port>;
 
-        class Address {
-        public:
-            enum Null;
-        public:
-            Address();
-            Address(const Null & null);
-            Address(Physical_Address paddr, Port port);
-            operator bool() const { return (_paddr || _port); }
-            bool operator==(Address a) { return (_paddr == a._paddr) && (_port == a._port); }
-        private:
-            Physical_Address _paddr;
-            Port _port;
+        static const Ethernet::Protocol PROTO = Traits<Protocol>::ETHERNET_PROTOCOL_NUMBER;
+
+        // endereço completo: MAC + porta
+        struct Address {
+            Physical_Address paddr;
+            Port             port;
+
+            Address() : port(0) {}
+            Address(Physical_Address p, Port pt) : paddr(p), port(pt) {}
+
+            bool operator==(const Address& o) const {
+                return paddr == o.paddr && port == o.port;
+            }
+            operator bool() const {
+                return port != 0;
+            }
+
+            static Address BROADCAST() {
+                return Address(Physical_Address::BROADCAST(), 0);
+            }
         };
 
-        class Header;
-        static const unsigned int MTU = NIC::MTU - sizeof(Header);
-        typedef unsigned char Data[MTU];
-        class Packet: public Header {
-            public:
-                Packet();
-                Header * header();
-                template<typename T>
-                T * data() { return reinterpret_cast<T *>(&_data); }
-            private:
-                Data _data;
+        // header que vai na frente do payload em cada frame
+        struct Header {
+            Address src;
+            Address dst;
         } __attribute__((packed));
 
-    protected:
-        Protocol(NIC * nic): _nic(nic) { _nic->attach(this, PROTO); }
+        static const unsigned int MTU = NIC::MTU - sizeof(Header);
+
+        // payload cabe em MTU bytes após o header
+        struct Packet {
+            Header  header;
+            uint8_t data[MTU];
+
+            Header* hdr() { return &header; }
+
+            template<typename T>
+            T* data_as() { return reinterpret_cast<T*>(data); }
+        } __attribute__((packed));
 
     public:
-        ~Protocol() { _nic->detach(this, PROTO); }
-        static int send(Address from, Address to, const void * data, unsigned int size);
-        // Buffer * buf = NIC::alloc(to.paddr, PROTO, sizeof(Header) + size)
-        // NIC::send(buf)
-        static int receive(Buffer * buf, Address from, void * data, unsigned int size);
-        // unsigned int s = NIC::receive(buf, &from.paddr, &to.paddr, data, size)
-        // NIC::free(buf)
-        // return s;
-        static void attach(Observer * obs, Address address);
-        static void detach(Observer * obs, Address address);
+        Protocol(NIC* nic) : _nic(nic) {
+            _nic->attach(this, PROTO);
+        }
 
-    private:
-        void update(typename NIC::Observed * obs, NIC::Protocol_Number prot, Buffer * buf) {
-            if(!_observed.notify(buf)) // to call receive(...);
-                _nic->free(buf);
+        ~Protocol() {
+            _nic->detach(this, PROTO);
+        }
+
+        // envia dados de src para dst
+        int send(Address src, Address dst,
+                const void* data, unsigned int size)
+        {
+            // aloca buffer na NIC
+            auto* buf = _nic->alloc(dst.paddr, PROTO, sizeof(Header) + size);
+            if(!buf) return -1;
+
+            // monta o packet no payload do frame
+            auto* pkt = reinterpret_cast<Packet*>(buf->frame.data);
+            pkt->header.src = src;
+            pkt->header.dst = dst;
+            std::memcpy(pkt->data, data, size);
+
+            int result = _nic->send(buf);
+            _nic->free(buf);
+            return result;
+        }
+
+        // extrai dados de um buffer recebido e preenche src
+        int receive(Buffer* buf, Address* src,
+                    void* data, unsigned int size)
+        {
+            if(!buf) return -1;
+
+            auto* pkt = reinterpret_cast<Packet*>(buf->frame.data);
+            if(src) *src = pkt->header.src;
+
+            unsigned int len = std::min(size, (unsigned int)MTU);
+            std::memcpy(data, pkt->data, len);
+            return static_cast<int>(len);
+        }
+
+        // Communicators se registram aqui
+        void attach(Observer* obs, Port port) {
+            Observed::attach(obs, port);
+        }
+        void detach(Observer* obs, Port port) {
+            Observed::detach(obs, port);
         }
 
     private:
-        NIC * _nic;
+        // chamado pela NIC quando chega um frame com PROTO correto
+        void update(Ethernet::Protocol, Buffer* buf) override {
+            auto* pkt = reinterpret_cast<Packet*>(buf->frame.data);
+            Port dst_port = pkt->header.dst.port;
 
-        // Channel protocols are usually singletons
-        static Observed _observed;
+            // repassa ao Communicator registrado nessa porta
+            if(!Observed::notify(dst_port, buf))
+                _nic->free(buf);   // ninguém esperando — descarta
+        }
+
+        // necessário para o Ordered_List filtrar por condição
+        Ethernet::Protocol condition() const override {
+            return PROTO;
+        }
+
+        NIC* _nic;
 };
