@@ -105,7 +105,7 @@ class Protocol
         {
             if(!buf) return -1;
 
-            auto* pkt = reinterpret_cast<Packet*>(buf->frame.data);
+            auto* pkt = buf->data<Packet>();
             if(src) *src = pkt->header.src;
 
             unsigned int len = std::min(size, (unsigned int)MTU);
@@ -121,10 +121,15 @@ class Protocol
             Observed::detach(obs, port);
         }
 
+        void free(Buffer* buf) {
+            if(buf && buf->owner())
+                buf->owner()->free(buf);
+        }
+
     private:
         // chamado pela NIC quando chega um frame com PROTO correto
         void update(Ethernet::Protocol, Buffer* buf) override {
-            auto* pkt = reinterpret_cast<Packet*>(buf->frame.data);
+            auto* pkt = buf->data<Packet>();
             Port dst_port = pkt->header.dst.port;
 
             // repassa ao Communicator registrado nessa porta

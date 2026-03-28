@@ -18,7 +18,7 @@ class Communicator
 
     public:
         Communicator(Protocol* channel, Address address)
-            : Observer(address.port),   // rank = porta
+            :
             _channel(channel),
             _address(address)
         {

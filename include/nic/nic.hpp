@@ -30,6 +30,7 @@ public:
                 buf.frame.dst = dst;
                 buf.frame.src = _address;
                 buf.frame.type = prot;
+                buf.set_owner(this); // associa o buffer a esta NIC para facilitar a liberação posterior
                 return &buf;
             }
         }
@@ -40,6 +41,7 @@ public:
         if(buf) {
             buf->in_use = false;
             buf->size   = 0;
+            buf->set_owner(nullptr);
         }
     }
 

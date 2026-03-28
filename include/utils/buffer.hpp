@@ -1,6 +1,8 @@
 // buffer.hpp
 #pragma once
 
+#include "../nic/nic_base.hpp"
+
 /*
  * A buffer for holding Ethernet frames.
  */
@@ -33,6 +35,10 @@ public:
     Metadata&       metadata()       { return _meta; }
     const Metadata& metadata() const { return _meta; }
 
+    // ownership e gerenciamento do buffer
+    NICBase* owner() const { return _owner; }
+    void set_owner(NICBase* nic) { _owner = nic; }
+
     size_t size()  const { return _meta.size; }
     bool   valid() const { return _meta.valid; }
 
@@ -59,4 +65,5 @@ private:
     Frame    _frame;
     Metadata _meta;
     State    _state;
+    NICBase* _owner; // ponteiro para a NIC que gerencia este buffer (pode ser útil para liberar o buffer de volta ao pool da NIC)
 };
