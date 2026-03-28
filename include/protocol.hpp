@@ -1,23 +1,26 @@
 // Communication Protocol
 #include "ethernet.hpp"
 #include "observe.hpp"
+#include "nic/nic_base.hpp"
 #include "utils/buffer.hpp"
 #include "utils/traits.hpp"
-template<typename NIC>
+#include "observe/conditional.hpp"
+#include <list>
+
 class Protocol
-    : private Conditional_Data_Observer<Buffer<Ethernet::Frame>,
+    : private ConditionalObserver<Buffer<Ethernet::Frame>,
                                         Ethernet::Protocol>,
-      public  Conditionally_Data_Observed<Buffer<Ethernet::Frame>,
+      public  ConditionalObserved<Buffer<Ethernet::Frame>,
                                           uint16_t>
 {
     public:
         using Port             = uint16_t;
-        using Physical_Address = typename NIC::Address;
+        using Physical_Address = typename NICBase::Address;
         using Buffer           = ::Buffer<Ethernet::Frame>;
-        using Observer         = Conditional_Data_Observer<Buffer, Port>;
-        using Observed         = Conditionally_Data_Observed<Buffer, Port>;
+        using Observer         = ConditionalObserver<Buffer, Port>;
+        using Observed         = ConditionalObserved<Buffer, Port>;
 
-        static const Ethernet::Protocol PROTO = Traits<Protocol>::ETHERNET_PROTOCOL_NUMBER;
+        static const Ethernet::Protocol PROTO = Traits<ProtocolT>::ETHERNET_PROTOCOL_NUMBER;
 
         // endereço completo: MAC + porta
         struct Address {
@@ -45,7 +48,7 @@ class Protocol
             Address dst;
         } __attribute__((packed));
 
-        static const unsigned int MTU = NIC::MTU - sizeof(Header);
+        static const unsigned int MTU = NICBase::MTU - sizeof(Header);
 
         // payload cabe em MTU bytes após o header
         struct Packet {
@@ -59,31 +62,42 @@ class Protocol
         } __attribute__((packed));
 
     public:
-        Protocol(NIC* nic) : _nic(nic) {
-            _nic->attach(this, PROTO);
+        Protocol(NICBase* nic) {
+            attach_nic(nic);
         }
 
         ~Protocol() {
-            _nic->detach(this, PROTO);
+            for(auto* nic : _nics)
+                detach_nic(nic);
         }
 
-        // envia dados de src para dst
+        // Multiple NICs
+        void attach_nic(NICBase* nic) {
+            nic->attach(this, PROTO);
+        }
+
+        void detach_nic(NICBase* nic) {
+            nic->detach(this, PROTO);
+        }
+
+        /*
+            * Send a message to a specific destination address and port.
+            * The message is encapsulated in an Ethernet frame with the appropriate header.
+            * The function iterates through all attached NICs and attempts to send the message through each one until it succeeds.
+            * Returns the number of bytes sent, or -1 on error.
+        */
         int send(Address src, Address dst,
                 const void* data, unsigned int size)
         {
-            // aloca buffer na NIC
-            auto* buf = _nic->alloc(dst.paddr, PROTO, sizeof(Header) + size);
-            if(!buf) return -1;
-
-            // monta o packet no payload do frame
-            auto* pkt = reinterpret_cast<Packet*>(buf->frame.data);
-            pkt->header.src = src;
-            pkt->header.dst = dst;
-            std::memcpy(pkt->data, data, size);
-
-            int result = _nic->send(buf);
-            _nic->free(buf);
-            return result;
+            for (auto* nic : _nics) {
+                auto* buf = nic->alloc(dst.paddr, PROTO, 
+                                       sizeof(Header) + size);
+                if (buf) {
+                    nic->send(buf);
+                    nic->free(buf);
+                }
+            }
+            return size;
         }
 
         // extrai dados de um buffer recebido e preenche src
@@ -116,7 +130,8 @@ class Protocol
 
             // repassa ao Communicator registrado nessa porta
             if(!Observed::notify(dst_port, buf))
-                _nic->free(buf);   // ninguém esperando — descarta
+                for (auto* nic : _nics)
+                    nic->free(buf); // nenhum Communicator interessado — descarta
         }
 
         // necessário para o Ordered_List filtrar por condição
@@ -124,5 +139,5 @@ class Protocol
             return PROTO;
         }
 
-        NIC* _nic;
+        std::list<NICBase*> _nics; // para suportar múltiplas NICs
 };

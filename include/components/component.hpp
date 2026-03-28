@@ -1,5 +1,5 @@
 #include "../engine/shm_engine.hpp"
-#include "../nic.hpp"
+#include "../nic/nic.hpp"
 #include "../protocol.hpp"
 #include "../communicator.hpp"
 

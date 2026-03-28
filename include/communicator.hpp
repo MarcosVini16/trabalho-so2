@@ -1,22 +1,23 @@
 // Communication End-Point (for client classes)
-#include "observe.hpp"
+#include "observe/concurrent.hpp"
 #include "message.hpp"
 #include "utils/buffer.hpp"
 #include "ethernet.hpp"
-template<typename Channel>
+#include "protocol.hpp"
+
 class Communicator
-    : public Concurrent_Observer<Buffer<Ethernet::Frame>,
-                                 typename Channel::Port>
+    : public ConcurrentObserver<Buffer<Ethernet::Frame>,
+                                 typename Protocol::Port>
 {
-    using Port     = typename Channel::Port;
+    using Port     = typename Protocol::Port;
     using Buffer   = ::Buffer<Ethernet::Frame>;
-    using Observer = Concurrent_Observer<Buffer, Port>;
+    using Observer = ConcurrentObserver<Buffer, Port>;
 
     public:
-        using Address = typename Channel::Address;
+        using Address = typename Protocol::Address;
 
     public:
-        Communicator(Channel* channel, Address address)
+        Communicator(Protocol* channel, Address address)
             : Observer(address.port),   // rank = porta
             _channel(channel),
             _address(address)
@@ -50,16 +51,15 @@ class Communicator
         }
 
     private:
-        // chamado pelo Protocol quando chega um frame na nossa porta
         void update(Port, Buffer* buf) override {
             Observer::update(_address.port, buf);
         }
 
         // necessário para o Ordered_List filtrar
-        Port condition() const override {
+        Port condition() const {
             return _address.port;
         }
 
-        Channel* _channel;
+        Protocol* _channel;
         Address  _address;
 };
