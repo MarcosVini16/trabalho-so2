@@ -1,6 +1,4 @@
 // engine.hpp
-#pragma once
-
 #include <cstddef>
 
 /*
