@@ -1,6 +1,5 @@
 // Communication Protocol
 #include "ethernet.hpp"
-#include "observe.hpp"
 #include "nic/nic_base.hpp"
 #include "utils/buffer.hpp"
 #include "utils/traits.hpp"
