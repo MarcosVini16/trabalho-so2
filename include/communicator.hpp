@@ -1,65 +1,62 @@
 // Communication End-Point (for client classes)
 #include "observe/concurrent.hpp"
+#include "observe/conditional.hpp"
 #include "message.hpp"
 #include "utils/buffer.hpp"
 #include "ethernet.hpp"
 #include "protocol.hpp"
 
 class Communicator
-    : public ConcurrentObserver<Buffer<Ethernet::Frame>,
-                                 typename Protocol::Port>
+    : public ConditionalObserver<Buffer<Ethernet::Frame>,
+                                       Protocol::Port>
 {
-    using Port     = typename Protocol::Port;
-    using Buffer   = ::Buffer<Ethernet::Frame>;
-    using Observer = ConcurrentObserver<Buffer, Port>;
+public:
+    Communicator(Protocol* channel, Protocol::Address address)
+        : _channel(channel),
+          _address(address),
+          _semaphore(0)
+    {
+        _channel->attach(this, address.port);
+    }
 
-    public:
-        using Address = typename Protocol::Address;
+    ~Communicator() {
+        _channel->detach(this, _address.port);
+    }
 
-    public:
-        Communicator(Protocol* channel, Address address)
-            :
-            _channel(channel),
-            _address(address)
-        {
-            _channel->attach(this, address.port);
-        }
+    bool send(const Message* msg) {
+        return _channel->send(
+            _address,
+            Protocol::Address::BROADCAST(),
+            msg->data(),
+            msg->size()
+        ) > 0;
+    }
 
-        ~Communicator() {
-            _channel->detach(this, _address.port);
-        }
+    bool receive(Message* msg) {
+        _semaphore.p();                // bloqueia até chegar algo
+        Buffer<Ethernet::Frame> buf = _data.remove();    // retira da fila
 
-        bool send(const Message* msg) {
-            return _channel->send(
-                _address,
-                Address::BROADCAST(),
-                msg->data(),
-                msg->size()
-            ) > 0;
-        }
+        Protocol::Address from;
+        int size = _channel->receive(&buf, &from,
+                                     msg->data(), msg->size());
+        msg->set_size(size);
+        _channel->free(&buf);
+        return size > 0;
+    }
 
-        bool receive(Message* msg) {
-            // bloqueia até um buffer chegar via semáforo
-            Buffer* buf = Observer::updated();
+    // chamado pelo Protocol quando chega um frame na nossa porta
+    void update(Protocol::Port, Buffer<Ethernet::Frame>* buf) override {
+        _data.insert(*buf);   // insere na fila
+        _semaphore.v();      // acorda o receive()
+    }
 
-            Address from;
-            int size = _channel->receive(buf, &from, msg->data(), msg->size());
-            msg->set_size(size);
+    Protocol::Port condition() const override {
+        return _address.port;
+    }
 
-            _channel->free(buf);   // devolve o buffer ao pool da NIC
-            return size > 0;
-        }
-
-    private:
-        void update(Port, Buffer* buf) override {
-            Observer::update(_address.port, buf);
-        }
-
-        // necessário para o Ordered_List filtrar
-        Port condition() const {
-            return _address.port;
-        }
-
-        Protocol* _channel;
-        Address  _address;
+private:
+    Protocol*         _channel;
+    Protocol::Address _address;
+    Semaphore         _semaphore;
+    List<Buffer<Ethernet::Frame>> _data;
 };
