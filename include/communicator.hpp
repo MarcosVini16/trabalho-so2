@@ -1,4 +1,5 @@
 // Communication End-Point (for client classes)
+#pragma once
 #include "observe/concurrent.hpp"
 #include "observe/conditional.hpp"
 #include "message.hpp"
@@ -52,6 +53,10 @@ public:
 
     Protocol::Port condition() const override {
         return _address.port;
+    }
+
+    const Protocol::Address& address() const {
+        return _address;
     }
 
 private:

@@ -2,6 +2,7 @@
 // Observers can specify a condition (C) that determines when they should be notified of changes in the observed data (D). 
 // The ConditionalObserved class manages a list of observers and notifies them
 // (Normally, the condition will be the Protocol_Number in the NIC, so that Protocols can register to be notified when a frame with their EtherType is received.)
+#pragma once
 #include "../utils/ordered_list.hpp"
 
 /*

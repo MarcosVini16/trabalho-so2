@@ -1,5 +1,7 @@
-#include "../engine/shm_engine.hpp"
+#pragma once
+#include "../nic/nic_base.hpp"
 #include "../nic/nic.hpp"
+#include "../engine/shm_engine.hpp"
 #include "../protocol.hpp"
 #include "../communicator.hpp"
 
@@ -10,11 +12,15 @@
  */
 class Component {
 public:
-    Component();
+    Component(Protocol::Address address);
+
     virtual ~Component();
 
-    virtual void init() = 0;
-    virtual void run() = 0;
+    bool send(const Message& msg, Protocol::Address dst);
+
+    bool receive(Message& msg,Protocol::Address& src);
+
+    Protocol::Address address() const;
 
 protected:
     NIC<ShmEngine> _nic;

@@ -1,4 +1,5 @@
 // Communication Protocol
+#pragma once
 #include "ethernet.hpp"
 #include "nic/nic_base.hpp"
 #include "utils/buffer.hpp"
@@ -7,7 +8,7 @@
 #include <list>
 
 class Protocol
-    : private ConditionalObserver<Buffer<Ethernet::Frame>,
+    : public ConditionalObserver<Buffer<Ethernet::Frame>,
                                         Ethernet::Protocol>,
       public  ConditionalObserved<Buffer<Ethernet::Frame>,
                                           uint16_t>
@@ -73,10 +74,12 @@ class Protocol
         // Multiple NICs
         void attach_nic(NICBase* nic) {
             nic->attach(this, PROTO);
+            _nics.push_back(nic);
         }
 
         void detach_nic(NICBase* nic) {
             nic->detach(this, PROTO);
+            _nics.remove(nic);
         }
 
         /*

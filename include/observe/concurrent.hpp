@@ -1,3 +1,4 @@
+#pragma once
 #include "../utils/semaphore.hpp"
 #include "../utils/list.hpp"
 

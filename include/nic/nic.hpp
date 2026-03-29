@@ -1,4 +1,5 @@
 // nic.hpp
+#pragma once
 #include "nic_base.hpp"
 /*
     * A Network Interface Card (NIC) class that combines a specific Engine (E) with the NICBase interface.
@@ -80,5 +81,5 @@ private:
     }
 
     Address                  _address;
-    Buffer<Ethernet::Frame>  _buffer[NICBase::BUFFER_COUNT];
+    Buffer  _buffer[NICBase::BUFFER_COUNT];
 };
