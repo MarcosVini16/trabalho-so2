@@ -63,7 +63,7 @@ int RawSocketEngine::_send(const void* buf, size_t len) {
     addr.sll_family  = AF_PACKET;
     addr.sll_protocol = htons(ETH_P_ALL);
     // Why 0 and not _ifindex? Because we want to send to the broadcast address, so we set the interface index to 0 and specify the destination MAC address as broadcast.
-    addr.sll_ifindex = 0; 
+    addr.sll_ifindex = _ifindex; 
     addr.sll_halen   = 6;
     std::memset(addr.sll_addr, 0xff, 6);   // broadcast
 
@@ -93,11 +93,6 @@ void RawSocketEngine::_receive_loop() {
     }
 }
 
-void RawSocketEngine::_handle(void* buf, size_t len) {
-    // For demonstration, we just print the length of the received packet
-    std::cout << "Received packet of length: " << len << " bytes" << std::endl;
-    // In a real implementation, you would parse the Ethernet frame and handle it accordingly
-}
 
 Ethernet::Address RawSocketEngine::read_address() {
     struct ifreq ifr{};

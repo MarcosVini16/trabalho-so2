@@ -30,7 +30,7 @@ class RawSocketEngine : public Engine {
          * @param buf Pointer to the buffer containing the received data
          * @param len Length of the received data
          */
-        void _handle(void* buf, size_t len) override;
+        //void _handle(void* buf, size_t len) override;
 
         /*
          * @brief Internal loop for receiving data from the raw socket
