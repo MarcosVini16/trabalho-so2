@@ -5,6 +5,7 @@
 #include "utils/buffer.hpp"
 #include "utils/traits.hpp"
 #include "observe/conditional.hpp"
+#include <arpa/inet.h> // for htons and ntohs
 #include <list>
 
 class Protocol
@@ -44,8 +45,10 @@ class Protocol
 
         // header que vai na frente do payload em cada frame
         struct Header {
-            Address src;
-            Address dst;
+            Ethernet::Address src;
+            Ethernet::Address dst;
+            uint16_t src_port;
+            uint16_t dst_port;
         } __attribute__((packed));
 
         static const unsigned int MTU = NICBase::MTU - sizeof(Header);
@@ -88,30 +91,39 @@ class Protocol
             * The function iterates through all attached NICs and attempts to send the message through each one until it succeeds.
             * Returns the number of bytes sent, or -1 on error.
         */
-        int send(Address src, Address dst,
-                const void* data, unsigned int size)
-        {
-            for (auto* nic : _nics) {
-                auto* buf = nic->alloc(dst.paddr, PROTO, 
-                                       sizeof(Header) + size);
-                if (buf) {
-                    nic->send(buf);
-                    nic->free(buf);
-                }
+        int send(Address src, Address dst, const void* data, unsigned int size) {
+            for(auto* nic : _nics) {
+                auto* buf = nic->alloc(Ethernet::Address::BROADCAST(),
+                                    htons(PROTO), sizeof(Header) + size); // htons to convert protocol number to network byte order (correctly filter frames in the NIC)
+                if(!buf) continue;
+
+                auto* pkt = buf->data<Packet>();
+
+                // monta — separa o Address em seus campos primitivos
+                pkt->header.src  = src.paddr;   // extrai o MAC
+                pkt->header.src_port = src.port;    // extrai a porta
+                pkt->header.dst  = dst.paddr;
+                pkt->header.dst_port = dst.port;
+
+                std::memcpy(pkt->data, data, size);
+                nic->send(buf);
+                nic->free(buf);
             }
-            return size;
+            return static_cast<int>(size);
         }
 
         // extrai dados de um buffer recebido e preenche src
-        int receive(Buffer* buf, Address* src,
-                    void* data, unsigned int size)
-        {
+        int receive(Buffer* buf, Address* src, void* data, unsigned int size) {
             if(!buf) return -1;
-
             auto* pkt = buf->data<Packet>();
-            if(src) *src = pkt->header.src;
 
-            unsigned int len = std::min(size, (unsigned int)MTU);
+            // desmonta — reconstrói o Address a partir dos campos primitivos
+            if(src) {
+                src->paddr = pkt->header.src;   // junta de volta
+                src->port  = pkt->header.src_port;
+            }
+
+            unsigned int len = std::min(size, static_cast<unsigned int>(MTU));
             std::memcpy(data, pkt->data, len);
             return static_cast<int>(len);
         }
@@ -133,12 +145,12 @@ class Protocol
         // chamado pela NIC quando chega um frame com PROTO correto
         void update(Ethernet::Protocol, Buffer* buf) override {
             auto* pkt = buf->data<Packet>();
-            Port dst_port = pkt->header.dst.port;
 
-            // repassa ao Communicator registrado nessa porta
+            // desmonta só a porta destino — é tudo que precisa para o notify
+            Port dst_port = pkt->header.dst_port;
+
             if(!Observed::notify(dst_port, buf))
-                for (auto* nic : _nics)
-                    nic->free(buf); // nenhum Communicator interessado — descarta
+                free(buf);
         }
 
         // necessário para o Ordered_List filtrar por condição

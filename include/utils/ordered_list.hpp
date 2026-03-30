@@ -6,49 +6,46 @@
  */
 template<typename O, typename C>
 class Ordered_List {
+public:
+    // O observer é um ponteiro, C é a condição/rank
+    void insert(O* obj, C rank) {
+        std::lock_guard<std::mutex> lock(_mutex);
+        // guarda o par (rank, ponteiro)
+        auto it = _list.begin();
+        while(it != _list.end() && it->first < rank)
+            ++it;
+        _list.insert(it, {rank, obj});
+    }
+
+    void remove(O* obj) {
+        std::lock_guard<std::mutex> lock(_mutex);
+        _list.remove_if([obj](const auto& pair) {
+            return pair.second == obj;
+        });
+    }
+
+    // iterador expõe rank() e operator->
+    class Iterator {
     public:
-        using Observer = O;
-        using Condition = C;
+        using Inner = typename std::list<std::pair<C, O*>>::iterator;
 
-    public:
-        Ordered_List() {}
-        ~Ordered_List() {}
+        Iterator(Inner it) : _it(it) {}
 
-        /**
-         * Inserts an observer into the list in the correct position based on its rank.
-         */
-        void insert(Observer o) {
-            std::lock_guard<std::mutex> lock(_mutex);
-            auto it = _list.begin();
-            while(it != _list.end() && it->rank() < o.rank()) {
-                ++it;
-            }
-            _list.insert(it, o);
-        }
+        C    rank()  const { return _it->first; }
+        O*   operator->()  { return _it->second; }
+        O&   operator*()   { return *_it->second; }
 
-        /**
-         * Removes an observer from the list.
-         */
-        void remove(Observer o) {
-            std::lock_guard<std::mutex> lock(_mutex);
-            _list.remove(o);
-        }
-
-        /**
-         * Returns an iterator to the beginning of the list.
-         */
-        typename std::list<Observer>::iterator begin() {
-            return _list.begin();
-        }
-
-        /**
-         * Returns an iterator to the end of the list.
-         */
-        typename std::list<Observer>::iterator end() {
-            return _list.end();
-        }
+        Iterator& operator++() { ++_it; return *this; }
+        bool operator!=(const Iterator& o) const { return _it != o._it; }
 
     private:
-        std::list<Observer> _list;
-        std::mutex _mutex;
+        Inner _it;
+    };
+
+    Iterator begin() { return Iterator(_list.begin()); }
+    Iterator end()   { return Iterator(_list.end()); }
+
+private:
+    std::list<std::pair<C, O*>> _list;
+    std::mutex                  _mutex;
 };

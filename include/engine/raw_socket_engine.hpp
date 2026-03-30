@@ -1,5 +1,6 @@
 #pragma once
 #include "engine.hpp"
+#include "../ethernet.hpp"
 #include <string>
 #include <thread>
 #include <atomic>
@@ -11,6 +12,10 @@ class RawSocketEngine : public Engine {
     public:
         RawSocketEngine(const std::string& iface);
         ~RawSocketEngine();
+
+        Ethernet::Address read_address();  // lê o MAC da interface
+        Ethernet::Address address() const { return _address; }
+        
 
     protected:
         /*
@@ -34,9 +39,13 @@ class RawSocketEngine : public Engine {
          */
         void _receive_loop();
 
+        
+
     private:
         int _fd; // File descriptor for the raw socket
         std::string _iface; // Network interface to bind to (e.g., "eth0", "wlan0", etc.)
         std::thread _thread; // Thread for listening to incoming data
         std::atomic<bool> _running; // Flag to control the listening thread
+        Ethernet::Address _address; // MAC address of the interface
+        int _ifindex; // Interface index for sending packets
 };

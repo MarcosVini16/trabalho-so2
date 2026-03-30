@@ -6,11 +6,13 @@ Component::Component(Protocol::Address address) : _protocol(&_nic), _communicato
     _protocol.attach_nic(&_nic);
 }
 
-bool Component::send(const Message& msg, Protocol::Address dst) {
+Component::~Component() = default;
+
+bool Component::send(const Message& msg) {
     return _communicator.send(&msg);
 }
 
-bool Component::receive(Message& msg, Protocol::Address& src) {
+bool Component::receive(Message& msg) {
     return _communicator.receive(&msg);
 }
 

@@ -1,17 +1,42 @@
-# Define the C++ compiler to use
-CXX = g++
-# Define compiler flags (-g for debug info, -Wall for all warnings)
-CXXFLAGS = -Wall
-# Define the name of the executable target
-TARGET = hello
+CXX      = g++
+CXXFLAGS = -std=c++20 -Wall -Wextra -Iinclude -pthread
+LDFLAGS  = -lpthread
 
-all: run clean
+SRCS = src/engine/raw_socket_engine.cpp \
+       src/engine/shm_engine.cpp \
+       src/components/component.cpp
 
-$(TARGET): $(TARGET).cpp
-	$(CXX) $(CXXFLAGS) -o $(TARGET) $(TARGET).cpp
+OBJS     = $(SRCS:.cpp=.o)
+VEHICLE  = build/vehicle
+
+.PHONY: all clean network test
+
+all: $(VEHICLE)
+
+$(VEHICLE): app/vehicle_main.cpp $(OBJS)
+	@mkdir -p build
+	$(CXX) $(CXXFLAGS) $^ -o $@ $(LDFLAGS)
+
+%.o: %.cpp
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+# configura rede virtual (requer root)
+network:
+	@sudo scripts/setup_network.sh
+
+# compila, sobe rede e inicia VMs
+test: all network
+	@sudo scripts/start_vms.sh $(VEHICLE)
+
+# para testes locais sem QEMU — usa veth pairs
+test_local: all
+	@sudo ip link add veth0 type veth peer name veth1 2>/dev/null || true
+	@sudo ip link set veth0 up
+	@sudo ip link set veth1 up
+	@sudo ./$(VEHICLE) veth0 & \
+	 sudo ./$(VEHICLE) veth1 & \
+	 wait
 
 clean:
-	rm -f $(TARGET)
-
-run: $(TARGET)
-	./$(TARGET)
+	rm -rf build $(OBJS)
+	@sudo scripts/teardown_network.sh 2>/dev/null || true

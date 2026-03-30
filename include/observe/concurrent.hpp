@@ -2,6 +2,8 @@
 #include "../utils/semaphore.hpp"
 #include "../utils/list.hpp"
 
+template<typename D, typename C = void> class ConcurrentObserver; // Forward declaration
+
 // Concurrent_Observed is the base class for all classes that want to be observed by Concurrent_Observer
 template<typename D, typename C = void> class ConcurrentObserved {
     friend class ConcurrentObserver<D, C>; // to allow ConcurrentObserver to call update() and access _observers
@@ -27,7 +29,7 @@ template<typename D, typename C = void> class ConcurrentObserved {
 
         bool notify(C c, D * d) {
             bool notified = false;
-            for(Observers::Iterator obs = _observers.begin(); obs != _observers.end(); obs++) {
+            for(typename Observers::Iterator obs = _observers.begin(); obs != _observers.end(); obs++) {
                 if(obs->rank() == c) {
                     obs->update(c, d);
                     notified = true;
@@ -67,5 +69,5 @@ template<typename D, typename C> class ConcurrentObserver {
         Semaphore _semaphore;
         // List is a simple linked list implementation (need to be defined elsewhere) - couldn't we use std::list instead? 
         // Note: The List class should be thread-safe since it will be accessed by multiple threads (ConcurrentObservers) when they call update() and updated().
-        List<D> _data;
+        List<D*> _data;
 };

@@ -1,5 +1,6 @@
 #include <mutex>
 #include <list>
+#include <stdexcept>
 
 /*
  * A simple thread-safe list implementation.

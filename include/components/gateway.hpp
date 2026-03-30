@@ -1,24 +1,46 @@
+// gateway.hpp
 #pragma once
-#include "component.hpp"
+#include "../nic/nic.hpp"
+#include "../engine/raw_socket_engine.hpp"
 #include "../protocol.hpp"
-#include "engine/raw_socket_engine.hpp"
-#include <string>
+#include "../communicator.hpp"
+#include "../utils/ports.hpp"
 
-/*
- * A gateway component for handling communication between different 
- * vehicles (VMs) in a multi-vehicle system. 
- * It uses a raw socket engine to send and receive Ethernet frames.
- */
-class Gateway : public Component {
+class Gateway {
 public:
-    Gateway(Protocol::Address address, const std::string& iface) 
-        : Component(address), 
-        gw_nic(iface) 
+    Gateway(const std::string& iface)
+        : _gw_nic(iface),
+          _protocol(&_gw_nic),
+          _communicator(&_protocol,
+                        Protocol::Address{_gw_nic.address(), Ports::GATEWAY})
     {
-        _protocol.attach_nic(&gw_nic);
+        _protocol.attach_nic(&_gw_nic);
     }
-    
-    ~Gateway() override = default;
+
+    ~Gateway() = default;
+
+    bool send(const Message& msg) {
+        return _communicator.send(&msg);
+    }
+
+    bool receive(Message& msg) {
+        return _communicator.receive(&msg);
+    }
+
+    Protocol::Address address() const {
+        return _communicator.address();
+    }
+
+    Ethernet::Address nic_address() const {
+        return _gw_nic.address();
+    }
+
+    void attach_nic(NICBase* nic) {
+        _protocol.attach_nic(nic);
+    }
+
 private:
-    NIC<RawSocketEngine> gw_nic;
+    NIC<RawSocketEngine> _gw_nic;
+    Protocol             _protocol;
+    Communicator         _communicator;
 };

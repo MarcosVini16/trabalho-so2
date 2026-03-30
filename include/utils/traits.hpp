@@ -1,3 +1,4 @@
+#pragma once
 template<typename T> struct Traits {};
 
 // Specializations for specific types
@@ -10,5 +11,5 @@ template<> struct Traits<NICT> {
 // Specialization for Protocol to define its Ethernet protocol number
 class ProtocolT;
 template<> struct Traits<ProtocolT> {
-    static const unsigned int ETHERNET_PROTOCOL_NUMBER = 0x0800; // IPv4 protocol number in Ethernet
+    static const unsigned int ETHERNET_PROTOCOL_NUMBER = 0x8888; // example EtherType for our custom protocol
 };

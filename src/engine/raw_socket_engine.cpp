@@ -11,36 +11,38 @@
 #include <cstring>
 #include <stdexcept>
 #include <iostream>
+#include <cerrno>
 
 
 RawSocketEngine::RawSocketEngine(const std::string& iface)
     : _iface(iface), _running(true)
 {
-    // Open a raw socket, requires root privileges
+    // 1. abre o socket
     _fd = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
-    //
     if(_fd < 0)
         throw std::runtime_error("socket() falhou — rode como root");
 
-    // Bind the socket to the specified interface (e.g., "eth0")
+    // 2. busca o índice — preenche _ifindex
     struct ifreq ifr{};
     std::strncpy(ifr.ifr_name, iface.c_str(), IFNAMSIZ - 1);
-    // If the interface index cannot be obtained, throw an error
     if(ioctl(_fd, SIOCGIFINDEX, &ifr) < 0)
         throw std::runtime_error("interface não encontrada: " + iface);
+    _ifindex = ifr.ifr_ifindex;  // salva aqui
 
-    
-    // Set up the socket address structure for binding (ll = link layer)
+    // 3. lê o MAC — reusa o mesmo ifr
+    if(ioctl(_fd, SIOCGIFHWADDR, &ifr) < 0)
+        throw std::runtime_error("falha ao ler MAC de " + iface);
+    std::memcpy(_address.bytes, ifr.ifr_hwaddr.sa_data, 6);
+
+    // 4. bind usando _ifindex já preenchido
     struct sockaddr_ll addr{};
     addr.sll_family   = AF_PACKET;
     addr.sll_protocol = htons(ETH_P_ALL);
-    addr.sll_ifindex  = ifr.ifr_ifindex;
-
-    // Bind the socket to the interface (throws on failure)
-    if(bind(_fd, (struct sockaddr*)&addr, sizeof(addr)) < 0)
+    addr.sll_ifindex  = _ifindex;
+    if(bind(_fd, reinterpret_cast<struct sockaddr*>(&addr), sizeof(addr)) < 0)
         throw std::runtime_error("bind() falhou");
 
-    // Start the receiving thread (which will call _handle() for each received packet)
+    // 5. inicia thread de recepção
     _thread = std::thread([this]{ _receive_loop(); });
 }
 
@@ -52,16 +54,31 @@ RawSocketEngine::~RawSocketEngine() {
 }
 
 int RawSocketEngine::_send(const void* buf, size_t len) {
+    auto* frame = reinterpret_cast<const Ethernet::Frame*>(buf);
+    std::cout << "[engine] enviando frame EtherType=0x" 
+              << std::hex << ntohs(frame->type) 
+              << " len=" << std::dec << len << "\n";
     // Set up the socket address structure for sending (broadcast)
     struct sockaddr_ll addr{};
     addr.sll_family  = AF_PACKET;
+    addr.sll_protocol = htons(ETH_P_ALL);
+    // Why 0 and not _ifindex? Because we want to send to the broadcast address, so we set the interface index to 0 and specify the destination MAC address as broadcast.
     addr.sll_ifindex = 0; 
     addr.sll_halen   = 6;
     std::memset(addr.sll_addr, 0xff, 6);   // broadcast
 
     // Send the raw Ethernet frame (returns number of bytes sent or -1 on error)
-    return sendto(_fd, buf, len, 0,
+    ssize_t sent =  sendto(_fd, buf, len, 0,
                   (struct sockaddr*)&addr, sizeof(addr));
+    
+    if(sent < 0)
+        std::cerr << "[engine] sendto falhou: " << strerror(errno) << "\n";
+
+    
+    std::cout << "[engine] sendto retornou=" << sent 
+              << " ifindex=" << _ifindex << "\n";
+    
+    return static_cast<int>(sent);
 }
 
 void RawSocketEngine::_receive_loop() {
@@ -82,14 +99,13 @@ void RawSocketEngine::_handle(void* buf, size_t len) {
     // In a real implementation, you would parse the Ethernet frame and handle it accordingly
 }
 
-int main() {
-    try {
-        RawSocketEngine engine("enp0s1"); // Substitua "enp0s1" pelo nome da sua interface de rede
-        // O engine agora está rodando e processando pacotes
-        std::this_thread::sleep_for(std::chrono::seconds(10)); // exemplo de tempo de execução
-    } catch(const std::exception& ex) {
-        std::cerr << "Erro: " << ex.what() << std::endl;
-        return 1;
-    }
-    return 0;
+Ethernet::Address RawSocketEngine::read_address() {
+    struct ifreq ifr{};
+    std::strncpy(ifr.ifr_name, _iface.c_str(), IFNAMSIZ - 1);
+    if(ioctl(_fd, SIOCGIFHWADDR, &ifr) < 0)
+        throw std::runtime_error("falha ao ler MAC de " + _iface);
+
+    Ethernet::Address addr{};
+    std::memcpy(addr.bytes, ifr.ifr_hwaddr.sa_data, 6);
+    return addr;
 }

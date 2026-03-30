@@ -7,11 +7,15 @@
 // (Needs to be implemented in a .cpp file)
 class Semaphore {
     public:
-        Semaphore(unsigned int count = 0);
+        Semaphore(unsigned int count = 0) : sem(count) {}
 
-        void p();
+        void p() {
+            sem.acquire();
+        }
 
-        void v();
+        void v() {
+            sem.release();
+        }
 
     private:
         std::counting_semaphore<> sem; // Using C++20 counting_semaphore

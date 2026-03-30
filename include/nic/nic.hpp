@@ -1,6 +1,8 @@
 // nic.hpp
 #pragma once
 #include "nic_base.hpp"
+#include <iostream>
+#include <arpa/inet.h> // for htons and ntohs
 /*
     * A Network Interface Card (NIC) class that combines a specific Engine (E) with the NICBase interface.
     * Sends and receives Ethernet frames using the underlying Engine's capabilities, 
@@ -14,23 +16,25 @@ class NIC : public NICBase,
 public:
     template<typename... Args>
     NIC(Args&&... args) : E(std::forward<Args>(args)...) {
-        _address = E::read_address();  // cada Engine sabe seu endereço
+        _address = this->read_address();  // correto — método de instância
     }
 
     int send(Buffer* buf) override {
-        return E::_send(&buf->frame, buf->size);
+        return E::_send(buf->frame(), buf->size());
     }
 
     Buffer* alloc(Address dst, Protocol_Number prot,
                   unsigned int size) override
     {
         for(auto& buf : _buffer) {
-            if(!buf.in_use) {
-                buf.in_use    = true;
-                buf.size      = size;
-                buf.frame.dst = dst;
-                buf.frame.src = _address;
-                buf.frame.type = prot;
+            if(buf.is_free()) {
+                buf.allocate();
+                buf.set_size(size);
+                buf.frame()->dst = dst;
+                buf.frame()->src = _address;
+                std::cout << "[nic] alloc EtherType=0x" 
+          << std::hex << prot << std::dec << "\n";
+                buf.frame()->type = htons(prot); // htons to convert protocol number to network byte order (correctly filter frames in the NIC)
                 buf.set_owner(this); // associa o buffer a esta NIC para facilitar a liberação posterior
                 return &buf;
             }
@@ -40,19 +44,17 @@ public:
 
     void free(Buffer* buf) override {
         if(buf) {
-            buf->in_use = false;
-            buf->size   = 0;
-            buf->set_owner(nullptr);
+            buf->release();
         }
     }
 
     int receive(Buffer* buf, Address* src,
                 void* data, unsigned int size) override
     {
-        if(!buf || !buf->in_use) return -1;
-        if(src) *src = buf->frame.src;
-        unsigned int len = std::min(size, buf->size);
-        std::memcpy(data, buf->frame.data, len);
+        if(!buf || buf->is_free()) return -1;
+        if(src) *src = buf->frame()->src;
+        unsigned int len = std::min(size, static_cast<unsigned int>(buf->size()));
+        std::memcpy(data, buf->frame()->data, len);
         return static_cast<int>(len);
     }
 
@@ -68,12 +70,28 @@ public:
 
 private:
     void _handle(void* raw, size_t len) override {
+        auto* frame = static_cast<Ethernet::Frame*>(raw);
+        uint16_t etype = ntohs(frame->type);
+
+        // ignora frames que não são do projeto — evita processar lixo
+        // if(etype != Protocol::PROTO) {
+        //     return;
+        // }
+
+        std::cout << "[nic] frame recebido EtherType=0x" 
+              << std::hex << etype << std::dec << "\n";
+
         for(auto& buf : _buffer) {
-            if(!buf.in_use) {
-                buf.in_use = true;
-                buf.size   = static_cast<unsigned int>(len);
-                std::memcpy(&buf.frame, raw, len);
-                this->notify(buf.frame.type, &buf);
+            if(buf.is_free()) {
+                buf.allocate();
+                buf.set_size(len);
+                std::memcpy(&buf.frame()->data, raw, len);
+
+                uint16_t frame_etype = ntohs(buf.frame()->type);
+                // this->notify(buf.frame()->type, &buf);
+                if (!this->notify(frame_etype, &buf)) {
+                    buf.release(); // libera o buffer se ninguém se interessou
+                }
                 return;
             }
         }

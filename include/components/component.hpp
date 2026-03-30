@@ -12,13 +12,14 @@
  */
 class Component {
 public:
+
     Component(Protocol::Address address);
 
     virtual ~Component();
 
-    bool send(const Message& msg, Protocol::Address dst);
+    bool send(const Message& msg);
 
-    bool receive(Message& msg,Protocol::Address& src);
+    bool receive(Message& msg);
 
     Protocol::Address address() const;
 

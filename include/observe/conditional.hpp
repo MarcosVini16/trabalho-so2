@@ -22,22 +22,24 @@ public:
 template<typename D, typename C>
 class ConditionalObserved {
     using Observer = ConditionalObserver<D, C>;
-    using Observers = Ordered_List<Observer, C>;
+    using Observers = Ordered_List<Observer*, C>;
 
 public:
     void attach(Observer* obs, C c) {
-        _observers.insert(obs, c);
+        _observers.insert(&obs, c);
     }
 
     void detach(Observer* obs, C c) {
-        _observers.remove(obs);
+        // Shouldn't it be (&obs?)
+        // Yes, we need to pass the address of the observer pointer to remove it from the list. The insert function takes a pointer to the observer pointer, so we should do the same for remove.
+        _observers.remove(&obs);
     }
 
     bool notify(C c, D* d) {
         bool notified = false;
         for(auto it = _observers.begin(); it != _observers.end(); ++it) {
-            if(it->condition() == c) {
-                it->update(c, d);
+            if(it.rank() == c) {          // rank() vem do iterador
+                (*it)->update(c, d);      // operator* retorna O&
                 notified = true;
             }
         }
