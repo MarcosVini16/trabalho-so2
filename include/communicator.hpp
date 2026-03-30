@@ -37,12 +37,18 @@ public:
         _semaphore.p();
         std::cout << "[communicator] acordou, lendo buffer\n";
         Buffer<Ethernet::Frame>* buf = _data.remove();
-        std::cout << "[communicator] buffer removido da fila\n";
 
+        if(!buf) {
+            std::cout << "[communicator] buffer nulo!\n";
+            msg->set_size(0);
+            return false;
+        }
+
+        std::cout << "[communicator] buffer removido da fila\n";
         Protocol::Address from;
         int size = _channel->receive(buf, &from, msg->data(), Message::MAX_SIZE);
         std::cout << "[communicator] receive retornou size=" << size << "\n";
-        msg->set_size(size);
+        msg->set_size(size > 0 ? size : 0);
         _channel->free(buf);
         std::cout << "[communicator] buffer liberado\n";
         return size > 0;

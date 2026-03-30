@@ -49,6 +49,7 @@ class Protocol
             Ethernet::Address dst;
             uint16_t src_port;
             uint16_t dst_port;
+            uint16_t payload_size; //
         } __attribute__((packed));
 
         static const unsigned int MTU = NICBase::MTU - sizeof(Header);
@@ -104,6 +105,7 @@ class Protocol
                 pkt->header.src_port = htons(src.port);    // extrai a porta
                 pkt->header.dst  = dst.paddr;
                 pkt->header.dst_port = htons(dst.port);
+                pkt->header.payload_size = htons(static_cast<uint16_t>(size));
 
                 std::memcpy(pkt->data, data, size);
                 nic->send(buf);
@@ -121,7 +123,8 @@ class Protocol
                 src->paddr = pkt->header.src;
                 src->port = ntohs(pkt->header.src_port);
             }
-            unsigned int len = std::min(size, static_cast<unsigned int>(MTU));
+            uint16_t real_size = ntohs(pkt->header.payload_size);
+            unsigned int len = std::min(size, static_cast<unsigned int>(real_size));
             std::memcpy(data, pkt->data, len);
             std::cout << "[protocol] receive retornou len=" << len << "\n";
             return static_cast<int>(len);

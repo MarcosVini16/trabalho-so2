@@ -1,6 +1,6 @@
 CXX      = g++
 CXXFLAGS = -std=c++20 -Wall -Wextra -Iinclude -pthread
-LDFLAGS  = -lpthread
+LDFLAGS  = -lpthread -static
 
 SRCS = src/engine/raw_socket_engine.cpp \
        src/engine/shm_engine.cpp \
