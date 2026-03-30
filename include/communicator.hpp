@@ -34,7 +34,8 @@ public:
     }
 
     bool receive(Message* msg) {
-        _semaphore.p();                // bloqueia até chegar algo
+        _semaphore.p(); // bloqueia
+        std::cout << "[communicator] mensagem chegou!\n";
         Buffer<Ethernet::Frame> buf = _data.remove();    // retira da fila
 
         Protocol::Address from;

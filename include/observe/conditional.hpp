@@ -1,13 +1,6 @@
-// Observable pattern with conditional observers.
-// Observers can specify a condition (C) that determines when they should be notified of changes in the observed data (D). 
-// The ConditionalObserved class manages a list of observers and notifies them
-// (Normally, the condition will be the Protocol_Number in the NIC, so that Protocols can register to be notified when a frame with their EtherType is received.)
 #pragma once
 #include "../utils/ordered_list.hpp"
 
-/*
- * A conditional observer for observing changes in observed data based on a condition.
- */
 template<typename D, typename C>
 class ConditionalObserver {
 public:
@@ -16,30 +9,25 @@ public:
     virtual ~ConditionalObserver() = default;
 };
 
-/*
- * A conditional observed for observing changes in observed data based on a condition.
- */
 template<typename D, typename C>
 class ConditionalObserved {
     using Observer = ConditionalObserver<D, C>;
-    using Observers = Ordered_List<Observer*, C>;
+    using Observers = Ordered_List<Observer, C>;
 
 public:
     void attach(Observer* obs, C c) {
-        _observers.insert(&obs, c);
+        _observers.insert(obs, c);
     }
 
     void detach(Observer* obs, C c) {
-        // Shouldn't it be (&obs?)
-        // Yes, we need to pass the address of the observer pointer to remove it from the list. The insert function takes a pointer to the observer pointer, so we should do the same for remove.
-        _observers.remove(&obs);
+        _observers.remove(obs);
     }
 
     bool notify(C c, D* d) {
         bool notified = false;
         for(auto it = _observers.begin(); it != _observers.end(); ++it) {
-            if(it.rank() == c) {          // rank() vem do iterador
-                (*it)->update(c, d);      // operator* retorna O&
+            if(it.rank() == c) {
+                it->update(c, d);
                 notified = true;
             }
         }

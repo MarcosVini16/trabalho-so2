@@ -101,9 +101,9 @@ class Protocol
 
                 // monta — separa o Address em seus campos primitivos
                 pkt->header.src  = src.paddr;   // extrai o MAC
-                pkt->header.src_port = src.port;    // extrai a porta
+                pkt->header.src_port = htons(src.port);    // extrai a porta
                 pkt->header.dst  = dst.paddr;
-                pkt->header.dst_port = dst.port;
+                pkt->header.dst_port = htons(dst.port);
 
                 std::memcpy(pkt->data, data, size);
                 nic->send(buf);
@@ -120,7 +120,7 @@ class Protocol
             // desmonta — reconstrói o Address a partir dos campos primitivos
             if(src) {
                 src->paddr = pkt->header.src;   // junta de volta
-                src->port  = pkt->header.src_port;
+                src->port = ntohs(pkt->header.src_port);
             }
 
             unsigned int len = std::min(size, static_cast<unsigned int>(MTU));
@@ -130,6 +130,7 @@ class Protocol
 
         // Communicators se registram aqui
         void attach(Observer* obs, Port port) {
+            std::cout << "[protocol] attach porta=" << port << "\n";
             Observed::attach(obs, port);
         }
         void detach(Observer* obs, Port port) {
@@ -144,13 +145,22 @@ class Protocol
     private:
         // chamado pela NIC quando chega um frame com PROTO correto
         void update(Ethernet::Protocol, Buffer* buf) override {
+            std::cout << "[protocol] update chamado\n";
             auto* pkt = buf->data<Packet>();
+            Port dst_port = ntohs(pkt->header.dst_port);
+            std::cout << "[protocol] dst_port=" << dst_port << "\n";
 
-            // desmonta só a porta destino — é tudo que precisa para o notify
-            Port dst_port = pkt->header.dst_port;
+            bool notified = false;
+            if(dst_port == 0) {
+                notified = Observed::notify(1000, buf);
+            } else {
+                notified = Observed::notify(dst_port, buf);
+            }
 
-            if(!Observed::notify(dst_port, buf))
+            if(!notified) {
+                std::cout << "[protocol] ninguem escutando na porta " << dst_port << "\n";
                 free(buf);
+            }
         }
 
         // necessário para o Ordered_List filtrar por condição

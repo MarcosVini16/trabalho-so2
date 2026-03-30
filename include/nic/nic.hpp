@@ -85,7 +85,7 @@ private:
             if(buf.is_free()) {
                 buf.allocate();
                 buf.set_size(len);
-                std::memcpy(&buf.frame()->data, raw, len);
+                std::memcpy(buf.frame(), raw, len);
 
                 uint16_t frame_etype = ntohs(buf.frame()->type);
                 // this->notify(buf.frame()->type, &buf);
