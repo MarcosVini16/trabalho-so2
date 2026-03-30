@@ -115,16 +115,15 @@ class Protocol
         // extrai dados de um buffer recebido e preenche src
         int receive(Buffer* buf, Address* src, void* data, unsigned int size) {
             if(!buf) return -1;
+            std::cout << "[protocol] receive chamado buf->size()=" << buf->size() << "\n";
             auto* pkt = buf->data<Packet>();
-
-            // desmonta — reconstrói o Address a partir dos campos primitivos
             if(src) {
-                src->paddr = pkt->header.src;   // junta de volta
+                src->paddr = pkt->header.src;
                 src->port = ntohs(pkt->header.src_port);
             }
-
             unsigned int len = std::min(size, static_cast<unsigned int>(MTU));
             std::memcpy(data, pkt->data, len);
+            std::cout << "[protocol] receive retornou len=" << len << "\n";
             return static_cast<int>(len);
         }
 

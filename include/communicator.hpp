@@ -1,4 +1,3 @@
-// Communication End-Point (for client classes)
 #pragma once
 #include "observe/concurrent.hpp"
 #include "observe/conditional.hpp"
@@ -6,6 +5,7 @@
 #include "utils/buffer.hpp"
 #include "ethernet.hpp"
 #include "protocol.hpp"
+#include <iostream>
 
 class Communicator
     : public ConditionalObserver<Buffer<Ethernet::Frame>,
@@ -34,22 +34,24 @@ public:
     }
 
     bool receive(Message* msg) {
-        _semaphore.p(); // bloqueia
-        std::cout << "[communicator] mensagem chegou!\n";
-        Buffer<Ethernet::Frame> buf = _data.remove();    // retira da fila
+        _semaphore.p();
+        std::cout << "[communicator] acordou, lendo buffer\n";
+        Buffer<Ethernet::Frame>* buf = _data.remove();
+        std::cout << "[communicator] buffer removido da fila\n";
 
         Protocol::Address from;
-        int size = _channel->receive(&buf, &from,
-                                     msg->data(), msg->size());
+        int size = _channel->receive(buf, &from, msg->data(), Message::MAX_SIZE);
+        std::cout << "[communicator] receive retornou size=" << size << "\n";
         msg->set_size(size);
-        _channel->free(&buf);
+        _channel->free(buf);
+        std::cout << "[communicator] buffer liberado\n";
         return size > 0;
     }
 
-    // chamado pelo Protocol quando chega um frame na nossa porta
-    void update(Protocol::Port, Buffer<Ethernet::Frame>* buf) override {
-        _data.insert(*buf);   // insere na fila
-        _semaphore.v();      // acorda o receive()
+    void update(Protocol::Port p, Buffer<Ethernet::Frame>* buf) override {
+        std::cout << "[communicator] update chamado porta=" << p << "\n";
+        _data.insert(buf);
+        _semaphore.v();
     }
 
     Protocol::Port condition() const override {
@@ -64,5 +66,5 @@ private:
     Protocol*         _channel;
     Protocol::Address _address;
     Semaphore         _semaphore;
-    List<Buffer<Ethernet::Frame>> _data;
+    List<Buffer<Ethernet::Frame>*> _data;
 };

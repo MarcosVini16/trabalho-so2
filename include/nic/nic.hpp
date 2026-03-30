@@ -49,11 +49,13 @@ public:
     }
 
     int receive(Buffer* buf, Address* src,
-                void* data, unsigned int size) override
+            void* data, unsigned int size) override
     {
         if(!buf || buf->is_free()) return -1;
         if(src) *src = buf->frame()->src;
-        unsigned int len = std::min(size, static_cast<unsigned int>(buf->size()));
+        size_t header_size = sizeof(Ethernet::Address) * 2 + sizeof(Ethernet::Protocol);
+        size_t payload_size = buf->size() > header_size ? buf->size() - header_size : 0;
+        unsigned int len = std::min(size, static_cast<unsigned int>(payload_size));
         std::memcpy(data, buf->frame()->data, len);
         return static_cast<int>(len);
     }
