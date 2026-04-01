@@ -1,3 +1,4 @@
 /build
-*.qcow2
-alpine.iso
+Image
+initramfs.cpio
+*.tar.xz
