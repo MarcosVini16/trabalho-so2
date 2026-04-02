@@ -1,0 +1,15 @@
+leo:
+- juntar os arquivos
+- arrumar o buffer
+- melhorar os comentários
+- arrumar o makefile
+
+?:
+- fazer teste de benchmark
+- fazer os slides
+
+marcos:
+- entrega 2
+
+rita:
+- fazer os diagramas
