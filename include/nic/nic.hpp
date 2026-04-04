@@ -73,15 +73,11 @@ public:
 private:
     void _handle(void* raw, size_t len) override {
         auto* frame = static_cast<Ethernet::Frame*>(raw);
+        if(frame->src == _address) return;
+
         uint16_t etype = ntohs(frame->type);
-
-        // ignora frames que não são do projeto — evita processar lixo
-        // if(etype != Protocol::PROTO) {
-        //     return;
-        // }
-
         std::cout << "[nic] frame recebido EtherType=0x" 
-              << std::hex << etype << std::dec << "\n";
+            << std::hex << etype << std::dec << "\n";
 
         for(auto& buf : _buffer) {
             if(buf.is_free()) {
@@ -90,14 +86,12 @@ private:
                 std::memcpy(buf.frame(), raw, len);
 
                 uint16_t frame_etype = ntohs(buf.frame()->type);
-                // this->notify(buf.frame()->type, &buf);
-                if (!this->notify(frame_etype, &buf)) {
-                    buf.release(); // libera o buffer se ninguém se interessou
-                }
+                this->notify(frame_etype, &buf);
+                // não libera aqui — o Communicator libera via _channel->free(buf)
                 return;
             }
         }
-        // pool esgotado — frame descartado
+        std::cout << "[nic] pool esgotado, frame descartado\n";
     }
 
     Address                  _address;

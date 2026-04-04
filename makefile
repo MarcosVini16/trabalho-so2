@@ -22,7 +22,7 @@ KERNEL_IMAGE = env/Image
 # sistema de arquivos empacotado que a VM carrega na inicialização
 INITRAMFS = initramfs.cpio
 
-.PHONY: all clean initramfs run
+.PHONY: all clean initramfs run vm1 vm2
 
 # compilar o binário RISC-V
 all: $(VEHICLE)
@@ -49,7 +49,24 @@ run: initramfs
 		-kernel $(KERNEL_IMAGE) -initrd $(INITRAMFS) \
 		--append "root=/dev/ram" \
 		-netdev socket,id=net0,mcast=230.0.0.1:1234 \
-		-device virtio-net-device,netdev=net0,mac=00:00:00:00:00:01 &
+		-device virtio-net-device,netdev=net0,mac=00:00:00:00:00:01 \
+		> /dev/null 2>&1 &
+	qemu-system-riscv64 -m 128M -M virt -nographic \
+		-kernel $(KERNEL_IMAGE) -initrd $(INITRAMFS) \
+		--append "root=/dev/ram" \
+		-netdev socket,id=net0,mcast=230.0.0.1:1234 \
+		-device virtio-net-device,netdev=net0,mac=00:00:00:00:00:02
+
+# sobe a VM 1 isolada — rode em um terminal separado
+vm1: initramfs
+	qemu-system-riscv64 -m 128M -M virt -nographic \
+		-kernel $(KERNEL_IMAGE) -initrd $(INITRAMFS) \
+		--append "root=/dev/ram" \
+		-netdev socket,id=net0,mcast=230.0.0.1:1234 \
+		-device virtio-net-device,netdev=net0,mac=00:00:00:00:00:01
+
+# sobe a VM 2 isolada — rode em um terminal separado
+vm2: initramfs
 	qemu-system-riscv64 -m 128M -M virt -nographic \
 		-kernel $(KERNEL_IMAGE) -initrd $(INITRAMFS) \
 		--append "root=/dev/ram" \

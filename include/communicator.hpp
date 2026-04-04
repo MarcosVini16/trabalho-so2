@@ -6,6 +6,7 @@
 #include "ethernet.hpp"
 #include "protocol.hpp"
 #include <iostream>
+#include <mutex>
 
 class Communicator
     : public ConditionalObserver<Buffer<Ethernet::Frame>,
@@ -34,16 +35,28 @@ public:
     }
 
     bool receive(Message* msg) {
+        // bloqueia a thread até ter algum buffer na lista
+        // (o update acorda via _semaphore.v())
         _semaphore.p();
         std::cout << "[communicator] acordou, lendo buffer\n";
-        Buffer<Ethernet::Frame>* buf = _data.remove();
+        Buffer<Ethernet::Frame>* buf;
+        
+        // quando acorda: trava o mutex antes de fazer o remove na lista
+        // remove o buffer da lista
+        // libera o mutex
+        {
+            std::lock_guard<std::mutex> lock(_mutex);
+            buf = _data.remove();
+        }
 
+        // verifica se o buffer é válido
         if(!buf) {
             std::cout << "[communicator] buffer nulo!\n";
             msg->set_size(0);
             return false;
         }
 
+        // continua processando o buffer com segurança
         std::cout << "[communicator] buffer removido da fila\n";
         Protocol::Address from;
         int size = _channel->receive(buf, &from, msg->data(), Message::MAX_SIZE);
@@ -54,9 +67,16 @@ public:
         return size > 0;
     }
 
+    // ao chegar um frame novo, update é chamado pela thread de recepção
     void update(Protocol::Port p, Buffer<Ethernet::Frame>* buf) override {
         std::cout << "[communicator] update chamado porta=" << p << "\n";
-        _data.insert(buf);
+        {   
+            // antes de inserir o buffer na lista, trava o mutex pra garantir que nenhuma outra thread está mexendo na lista ao mesmo tempo
+            std::lock_guard<std::mutex> lock(_mutex);
+            // insere o buffer na lista
+            _data.insert(buf);
+        }
+        // acorda a thread que está bloqueada no receive
         _semaphore.v();
     }
 
@@ -72,5 +92,6 @@ private:
     Protocol*         _channel;
     Protocol::Address _address;
     Semaphore         _semaphore;
+    std::mutex        _mutex;
     List<Buffer<Ethernet::Frame>*> _data;
 };

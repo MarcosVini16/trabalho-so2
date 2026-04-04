@@ -1,8 +1,16 @@
 #!/bin/sh
+#mkdir /sys /proc
+#mount -t sysfs none /sys
+#mount -t devtmpfs none /dev
+#mount -t proc proc /proc
+#ip link set eth0 up
+#mount -t proc proc /proc
+#setsid cttyhack sh
+
+#!/bin/sh
 mkdir /sys /proc
 mount -t sysfs none /sys
 mount -t devtmpfs none /dev
 mount -t proc proc /proc
 ip link set eth0 up
-mount -t proc proc /proc
-setsid cttyhack sh
+./vehicle eth0

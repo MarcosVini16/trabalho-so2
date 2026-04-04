@@ -77,8 +77,13 @@ int main(int argc, char* argv[]) {
     while(true) {
         Message msg;
         if(gateway.receive(msg)) {
-            std::string txt(static_cast<char*>(msg.data()), msg.size());
-            std::cout << "[gateway] recebeu: " << txt << "\n";
+            size_t sz = msg.size();
+            if(sz > 0 && sz <= Message::MAX_SIZE) {
+                std::string txt(static_cast<char*>(msg.data()), sz);
+                std::cout << "[gateway] recebeu: " << txt << "\n";
+            } else {
+                std::cout << "[gateway] mensagem com tamanho inválido: " << sz << "\n";
+            }
         }
     }
 

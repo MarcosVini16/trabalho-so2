@@ -18,7 +18,7 @@ RawSocketEngine::RawSocketEngine(const std::string& iface)
     : _iface(iface), _running(true)
 {
     // 1. abre o socket
-    _fd = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
+    _fd = socket(AF_PACKET, SOCK_RAW, htons(0x8888));
     if(_fd < 0)
         throw std::runtime_error("socket() falhou — rode como root");
 
@@ -37,7 +37,7 @@ RawSocketEngine::RawSocketEngine(const std::string& iface)
     // 4. bind usando _ifindex já preenchido
     struct sockaddr_ll addr{};
     addr.sll_family   = AF_PACKET;
-    addr.sll_protocol = htons(ETH_P_ALL);
+    addr.sll_protocol = htons(0x8888);
     addr.sll_ifindex  = _ifindex;
     if(bind(_fd, reinterpret_cast<struct sockaddr*>(&addr), sizeof(addr)) < 0)
         throw std::runtime_error("bind() falhou");
@@ -82,14 +82,16 @@ int RawSocketEngine::_send(const void* buf, size_t len) {
 }
 
 void RawSocketEngine::_receive_loop() {
-    // Buffer to hold incoming Ethernet frames (max size is sizeof(Ethernet::Frame))
     uint8_t buf[sizeof(Ethernet::Frame)];
     while(_running) {
-        // Receive data from the raw socket (blocks until a packet is received)
         ssize_t len = recvfrom(_fd, buf, sizeof(buf), 0, nullptr, nullptr);
-        // If data was received, call the _handle() method to process it
-        if(len > 0)
-            _handle(buf, static_cast<size_t>(len));
+        if(len > 0) {
+            auto* frame = reinterpret_cast<Ethernet::Frame*>(buf);
+            uint16_t etype = ntohs(frame->type);
+            // ignora frames que não são do projeto
+            if(etype == 0x8888)
+                _handle(buf, static_cast<size_t>(len));
+        }
     }
 }
 
