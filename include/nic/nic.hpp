@@ -2,6 +2,7 @@
 #pragma once
 #include "nic_base.hpp"
 #include <iostream>
+#include <mutex>
 #include <arpa/inet.h> // for htons and ntohs
 /*
     * A Network Interface Card (NIC) class that combines a specific Engine (E) with the NICBase interface.
@@ -26,6 +27,7 @@ public:
     Buffer* alloc(Address dst, Protocol_Number prot,
                   unsigned int size) override
     {
+        std::lock_guard<std::mutex> lock(_pool_mutex);
         for(auto& buf : _buffer) {
             if(buf.is_free()) {
                 buf.allocate();
@@ -79,6 +81,7 @@ private:
         std::cout << "[nic] frame recebido EtherType=0x" 
             << std::hex << etype << std::dec << "\n";
 
+        std::lock_guard<std::mutex> lock(_pool_mutex);
         for(auto& buf : _buffer) {
             if(buf.is_free()) {
                 buf.allocate();
@@ -87,7 +90,7 @@ private:
 
                 uint16_t frame_etype = ntohs(buf.frame()->type);
                 this->notify(frame_etype, &buf);
-                // não libera aqui — o Communicator libera via _channel->free(buf)
+                // não libera aqui — o Protocol libera após o notify
                 return;
             }
         }
@@ -95,5 +98,6 @@ private:
     }
 
     Address                  _address;
+    std::mutex               _pool_mutex; // protege o pool de buffers contra acesso concorrente
     Buffer  _buffer[NICBase::BUFFER_COUNT];
 };

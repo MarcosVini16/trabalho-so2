@@ -61,7 +61,8 @@ public:
     void release() {
         _state      = State::FREE;
         _meta       = Metadata{};
-        _owner      = nullptr;
+        // crime de guerra abaixo
+        //_owner      = nullptr;
         set_size(0);
     }
 

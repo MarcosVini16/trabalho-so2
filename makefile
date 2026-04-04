@@ -22,7 +22,7 @@ KERNEL_IMAGE = env/Image
 # sistema de arquivos empacotado que a VM carrega na inicialização
 INITRAMFS = initramfs.cpio
 
-.PHONY: all clean initramfs run vm1 vm2
+.PHONY: all clean initramfs run vm1 vm2 vm3 vm4 vm5
 
 # compilar o binário RISC-V
 all: $(VEHICLE)
@@ -55,7 +55,25 @@ run: initramfs
 		-kernel $(KERNEL_IMAGE) -initrd $(INITRAMFS) \
 		--append "root=/dev/ram" \
 		-netdev socket,id=net0,mcast=230.0.0.1:1234 \
-		-device virtio-net-device,netdev=net0,mac=00:00:00:00:00:02
+		-device virtio-net-device,netdev=net0,mac=00:00:00:00:00:02 \
+		> /dev/null 2>&1 &
+	qemu-system-riscv64 -m 128M -M virt -nographic \
+		-kernel $(KERNEL_IMAGE) -initrd $(INITRAMFS) \
+		--append "root=/dev/ram" \
+		-netdev socket,id=net0,mcast=230.0.0.1:1234 \
+		-device virtio-net-device,netdev=net0,mac=00:00:00:00:00:03 \
+		> /dev/null 2>&1 &
+	qemu-system-riscv64 -m 128M -M virt -nographic \
+		-kernel $(KERNEL_IMAGE) -initrd $(INITRAMFS) \
+		--append "root=/dev/ram" \
+		-netdev socket,id=net0,mcast=230.0.0.1:1234 \
+		-device virtio-net-device,netdev=net0,mac=00:00:00:00:00:04 \
+		> /dev/null 2>&1 &
+	qemu-system-riscv64 -m 128M -M virt -nographic \
+		-kernel $(KERNEL_IMAGE) -initrd $(INITRAMFS) \
+		--append "root=/dev/ram" \
+		-netdev socket,id=net0,mcast=230.0.0.1:1234 \
+		-device virtio-net-device,netdev=net0,mac=00:00:00:00:00:05
 
 # sobe a VM 1 isolada — rode em um terminal separado
 vm1: initramfs
@@ -72,6 +90,27 @@ vm2: initramfs
 		--append "root=/dev/ram" \
 		-netdev socket,id=net0,mcast=230.0.0.1:1234 \
 		-device virtio-net-device,netdev=net0,mac=00:00:00:00:00:02
+
+vm3: initramfs
+	qemu-system-riscv64 -m 128M -M virt -nographic \
+		-kernel $(KERNEL_IMAGE) -initrd $(INITRAMFS) \
+		--append "root=/dev/ram" \
+		-netdev socket,id=net0,mcast=230.0.0.1:1234 \
+		-device virtio-net-device,netdev=net0,mac=00:00:00:00:00:03
+
+vm4: initramfs
+	qemu-system-riscv64 -m 128M -M virt -nographic \
+		-kernel $(KERNEL_IMAGE) -initrd $(INITRAMFS) \
+		--append "root=/dev/ram" \
+		-netdev socket,id=net0,mcast=230.0.0.1:1234 \
+		-device virtio-net-device,netdev=net0,mac=00:00:00:00:00:04
+
+vm5: initramfs
+	qemu-system-riscv64 -m 128M -M virt -nographic \
+		-kernel $(KERNEL_IMAGE) -initrd $(INITRAMFS) \
+		--append "root=/dev/ram" \
+		-netdev socket,id=net0,mcast=230.0.0.1:1234 \
+		-device virtio-net-device,netdev=net0,mac=00:00:00:00:00:05
 
 # Remove binários e arquivos gerados
 clean:

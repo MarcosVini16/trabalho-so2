@@ -1,6 +1,5 @@
 leo:
 - juntar os arquivos
-- arrumar o buffer
 - melhorar os comentários
 
 ?:

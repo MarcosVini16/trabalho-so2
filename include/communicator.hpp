@@ -65,7 +65,6 @@ public:
         Protocol::Address from;
         int size = _channel->receive(buf, &from, msg->data(), Message::MAX_SIZE);
         msg->set_size(size > 0 ? size : 0);
-        _channel->free(buf); // libera buffer da NIC aqui, não no receive()
 
         _data.insert(msg);
         _semaphore.v();

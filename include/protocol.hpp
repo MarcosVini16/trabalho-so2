@@ -152,17 +152,13 @@ class Protocol
             Port dst_port = ntohs(pkt->header.dst_port);
             std::cout << "[protocol] dst_port=" << dst_port << "\n";
 
-            bool notified = false;
             if(dst_port == 0) {
-                notified = Observed::notify(1000, buf);
+                Observed::notify(1000, buf);
             } else {
-                notified = Observed::notify(dst_port, buf);
+                Observed::notify(dst_port, buf);
             }
 
-            if(!notified) {
-                std::cout << "[protocol] ninguem escutando na porta " << dst_port << "\n";
-                free(buf);
-            }
+            free(buf);
         }
 
         // necessário para o Ordered_List filtrar por condição
