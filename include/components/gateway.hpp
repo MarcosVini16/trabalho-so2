@@ -14,7 +14,7 @@ public:
           _communicator(&_protocol,
                         Protocol::Address{_gw_nic.address(), Ports::GATEWAY})
     {
-        _protocol.attach_nic(&_gw_nic);
+        //_protocol.attach_nic(&_gw_nic);
     }
 
     ~Gateway() = default;

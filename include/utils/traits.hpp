@@ -4,8 +4,8 @@ template<typename T> struct Traits {};
 // Specializations for specific types
 class NICT;
 template<> struct Traits<NICT> {
-    static const unsigned int SEND_BUFFERS = 16;
-    static const unsigned int RECEIVE_BUFFERS = 16;
+    static const unsigned int SEND_BUFFERS = 64;
+    static const unsigned int RECEIVE_BUFFERS = 64;
 };
 
 // Specialization for Protocol to define its Ethernet protocol number
