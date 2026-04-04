@@ -2,7 +2,6 @@ leo:
 - juntar os arquivos
 - arrumar o buffer
 - melhorar os comentários
-- arrumar o makefile
 
 ?:
 - fazer teste de benchmark
