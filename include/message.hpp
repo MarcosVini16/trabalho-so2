@@ -2,6 +2,7 @@
 #include <cstdint>
 #include <cstring>
 #include <cstddef>
+#include "ethernet.hpp"
 
 class Message {
     public:
@@ -37,4 +38,6 @@ class Message {
 
     uint8_t      _data[MAX_SIZE];
     unsigned int _size;
+    Ethernet::Address _src; // Para armazenar o endereço de origem (caso seja necessário para respostas)
+    
 };
