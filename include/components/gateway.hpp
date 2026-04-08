@@ -2,6 +2,7 @@
 #pragma once
 #include "../nic/nic.hpp"
 #include "../engine/raw_socket_engine.hpp"
+#include "../engine/shm_engine.hpp"
 #include "../protocol.hpp"
 #include "../communicator.hpp"
 #include "../utils/ports.hpp"
@@ -9,12 +10,12 @@
 class Gateway {
 public:
     Gateway(const std::string& iface)
-        : _gw_nic(iface),
-          _protocol(&_gw_nic),
-          _communicator(&_protocol,
-                        Protocol::Address{_gw_nic.address(), Ports::GATEWAY})
+        : rs_nic(iface),
+          protocol(&rs_nic),
+          _communicator(&protocol,
+                        Protocol::Address{rs_nic.address(), Ports::GATEWAY})
     {
-        //_protocol.attach_nic(&_gw_nic);
+        
     }
 
     ~Gateway() = default;
@@ -31,16 +32,9 @@ public:
         return _communicator.address();
     }
 
-    Ethernet::Address nic_address() const {
-        return _gw_nic.address();
-    }
-
-    void attach_nic(NICBase* nic) {
-        _protocol.attach_nic(nic);
-    }
-
 private:
-    NIC<RawSocketEngine> _gw_nic;
-    Protocol             _protocol;
-    Communicator         _communicator;
+    NIC<RawSocketEngine> rs_nic; // NIC para comunicação com a rede externa (outros veículos)
+    Protocol protocol; // Protocolo de comunicação
+    Communicator         _communicator; // Camada de comunicação para enviar/receber mensagem
+    NIC<ShmEngine>      shm_nic; // NIC para comunicação com componentes locais
 };
