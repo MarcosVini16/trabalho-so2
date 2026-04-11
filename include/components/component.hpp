@@ -12,7 +12,8 @@
 class Component {
 public:
 
-    Component(Protocol::Address address);
+    Component(Protocol::Address address, int shmid, int semid)
+        : nic(shmid, semid), protocol(&nic), communicator(&protocol, address) {};
 
     virtual ~Component();
 
