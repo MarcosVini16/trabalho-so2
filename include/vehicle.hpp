@@ -16,7 +16,11 @@
  * Representação de um veículo autônomo, 
  * contendo seus componentes e o gateway para comunicação externa.
 */
+
+#include "ethernet.hpp"
 class Vehicle {
+
+    using Frame = Ethernet::Frame;
 public:
     Vehicle(const std::string& iface, Ethernet::Address mac)
         : _mac(mac),
@@ -25,6 +29,7 @@ public:
         // Inicializa memória compartilhada e semáforos para comunicação entre componentes, se necessário.
         key_path = "/tmp/vehicle_shm_key"; // Caminho para gerar a chave IPC
         project_id = 1; // ID do projeto para gerar a chave IPC (0-255)
+
         key = ftok(key_path, project_id); // Gera a chave IPC
         if (key == -1) {
             perror("ftok");
@@ -32,9 +37,16 @@ public:
         }
 
         // Cria a memória compartilhada
-        shmid = shmget(key, 1024, IPC_CREAT | 0666);
+        shmid = shmget(key, sizeof(Frame), IPC_CREAT | 0666);
         if (shmid == -1) {
             perror("shmget");
+            exit(EXIT_FAILURE);
+        }
+
+        // Anexa a memória compartilhada ao processo
+        Frame* shm_ptr = static_cast<Frame*>(shmat(shmid, nullptr, 0));
+        if (shm_ptr == reinterpret_cast<void*>(-1)) {
+            perror("shmat");
             exit(EXIT_FAILURE);
         }
 
@@ -45,16 +57,12 @@ public:
             exit(EXIT_FAILURE);
         }
 
-    }
-
-    ~Vehicle() {
-        // Limpa a memória compartilhada e os semáforos
-        if (shmctl(shmid, IPC_RMID, nullptr) == -1) {
-            perror("shmctl");
-        }
-        if (semctl(semid, 0, IPC_RMID) == -1) {
+        // Inicializa o semáforo com valor 1 (indica que a memória compartilhada está disponível)
+        if (semctl(semid, 0, SETVAL, 1) == -1) {
             perror("semctl");
+            exit(EXIT_FAILURE);
         }
+
     }
 
     /*
