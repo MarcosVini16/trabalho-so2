@@ -1,14 +1,12 @@
-// engine.hpp
 #pragma once
 #include <cstddef>
 
-/*
- * Base class for all engine types
- * Defines the interface for sending and handling frames.
- */
+// classe base para as engines
 class Engine {
+    // os métodos são reescritos pelas filhas
     protected:
-        virtual int  _send(const void* buf, size_t len) = 0;
+        // virtual significa que vai ser reescrito
+        virtual int _send(const void* buf, size_t len) = 0;
         virtual void _handle(void* buf, size_t len) = 0;
         virtual ~Engine() = default;
 };

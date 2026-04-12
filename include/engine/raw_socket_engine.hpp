@@ -5,9 +5,6 @@
 #include <thread>
 #include <atomic>
 
-/**
- * @brief An Engine for handling raw socket communication
- */
 class RawSocketEngine : public Engine {
     public:
         RawSocketEngine(const std::string& iface);
@@ -18,12 +15,7 @@ class RawSocketEngine : public Engine {
         
 
     protected:
-        /*
-         * @brief Sends data through the raw socket
-         * @param buf Pointer to the buffer containing the data to send
-         * @param len Length of the data to send
-         * @return Number of bytes sent, or -1 on error
-         */
+
         int  _send(const void* buf, size_t len) override;
         /*
          * @brief Handles incoming data from the raw socket
@@ -42,10 +34,16 @@ class RawSocketEngine : public Engine {
         
 
     private:
-        int _fd; // File descriptor for the raw socket
-        std::string _iface; // Network interface to bind to (e.g., "eth0", "wlan0", etc.)
-        std::thread _thread; // Thread for listening to incoming data
-        std::atomic<bool> _running; // Flag to control the listening thread
-        Ethernet::Address _address; // MAC address of the interface
-        int _ifindex; // Interface index for sending packets
+        // file descriptor do socket (identifica o socket)
+        int _fd;
+        // nome da interface de rede
+        std::string _iface;
+        // uma thread do sistema operacional
+        std::thread _thread;
+        // flag atômica pra thread saber quando parar
+        std::atomic<bool> _running;
+        // MAC da interface
+        Ethernet::Address _address;
+        // índice numérico da interface
+        int _ifindex;
 };

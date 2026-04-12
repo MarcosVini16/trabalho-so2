@@ -1,28 +1,34 @@
-// buffer.hpp
 #pragma once
 
-class NICBase; // forward declaration to avoid circular dependency
+// declaração antecipada pra dependência
+class NICBase;
 
-/*
- * A buffer for holding Ethernet frames.
- */
 template<typename Frame>
 class Buffer {
 public:
-    // -- estado do slot no pool --
+
+    // estado do buffer: 3 possibilidades:
+    // livre, disponível pra uso
+    // alocado, alguém está usando
+    // received: recebeu dados
     enum class State { FREE, ALLOCATED, RECEIVED };
 
-    // -- metadados preenchidos pela NIC no alloc() ou no recebimento --
+    // informações auxiliares
     struct Metadata {
-        size_t size   = 0;      // tamanho real dos dados (pode ser < MTU)
-        bool   valid  = false;  // frame passou validação básica?
+        // tamanho real dos dados no frame (pode ser menor que MTU)
+        size_t size   = 0;
+        // se passou pela verificação básica
+        bool   valid  = false;
     };
 
 public:
+    // construtor: quando o buffer nasce, está livre
     Buffer() : _state(State::FREE) {}
 
-    // acesso ao frame físico
+    // acesso ao frame físico:
+    // permite modificar
     Frame*       frame()       { return &_frame; }
+    // não permite modificar
     const Frame* frame() const { return &_frame; }
     void set_frame(const Frame& f) { _frame = f; }
 

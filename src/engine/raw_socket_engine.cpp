@@ -1,4 +1,3 @@
-// engine_raw.cpp
 #include "../../include/engine/raw_socket_engine.hpp"
 #include "../../include/ethernet.hpp"
 #include <sys/socket.h>
@@ -13,8 +12,10 @@
 #include <iostream>
 #include <cerrno>
 
-
+// rede Ethernet entre VMs diferentes
+// sabe de socket, kernel, placa de rede
 RawSocketEngine::RawSocketEngine(const std::string& iface)
+    // roda a lista de inicialização
     : _iface(iface), _running(true)
 {
     // 1. abre o socket
