@@ -1,6 +1,7 @@
 #pragma once
 #include "engine.hpp"
 #include "../ethernet.hpp"
+#include <iostream>
 #include <sys/types.h>
 #include <sys/ipc.h>
 #include <sys/shm.h>
