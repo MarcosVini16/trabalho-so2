@@ -22,7 +22,7 @@ KERNEL_IMAGE = env/Image
 # sistema de arquivos empacotado que a VM carrega na inicialização
 INITRAMFS = initramfs.cpio
 
-.PHONY: all clean initramfs run vm1 vm2 vm3 vm4 vm5
+.PHONY: all clean initramfs run vm1 vm2 vm3 vm4 vm5 vm_responder vm_rtt
 
 # compilar o binário RISC-V
 all: $(VEHICLE)
@@ -111,6 +111,22 @@ vm5: initramfs
 		--append "root=/dev/ram" \
 		-netdev socket,id=net0,mcast=230.0.0.1:1234 \
 		-device virtio-net-device,netdev=net0,mac=00:00:00:00:00:05
+
+# VM respondedora para teste de RTT
+vm_responder: initramfs
+	qemu-system-riscv64 -m 128M -M virt -nographic \
+		-kernel $(KERNEL_IMAGE) -initrd $(INITRAMFS) \
+		--append "root=/dev/ram mode=responder" \
+		-netdev socket,id=net0,mcast=230.0.0.1:1234 \
+		-device virtio-net-device,netdev=net0,mac=00:00:00:00:00:01
+
+# VM medidora de RTT
+vm_rtt: initramfs
+	qemu-system-riscv64 -m 128M -M virt -nographic \
+		-kernel $(KERNEL_IMAGE) -initrd $(INITRAMFS) \
+		--append "root=/dev/ram mode=rtt" \
+		-netdev socket,id=net0,mcast=230.0.0.1:1234 \
+		-device virtio-net-device,netdev=net0,mac=00:00:00:00:00:02
 
 # Remove binários e arquivos gerados
 clean:

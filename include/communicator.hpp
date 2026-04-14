@@ -37,19 +37,19 @@ public:
         // bloqueia a thread até ter algum buffer na lista
         // (o update acorda via _semaphore.v())
         _semaphore.p();
-        std::cout << "[communicator] acordou, lendo buffer\n";
+        //std::cout << "[communicator] acordou, lendo buffer\n";
 
         Message* internal = _data.empty() ? nullptr : _data.remove();
 
         // verifica se a mensagem é válida
         if(!internal) {
-            std::cout << "[communicator] mensagem nula!\n";
+            //std::cout << "[communicator] mensagem nula!\n";
             msg->set_size(0);
             return false;
         }
 
         // copia os dados para o msg do caller e libera a mensagem interna
-        std::cout << "[communicator] mensagem removida da fila, size=" << internal->size() << "\n";
+        //std::cout << "[communicator] mensagem removida da fila, size=" << internal->size() << "\n";
         *msg = *internal;
         delete internal;
         return msg->size() > 0;
@@ -57,7 +57,7 @@ public:
 
     // ao chegar um frame novo, update é chamado pela thread de recepção
     void update(Protocol::Port p, Buffer<Ethernet::Frame>* buf) override {
-        std::cout << "[communicator] update chamado porta=" << p << "\n";
+        //std::cout << "[communicator] update chamado porta=" << p << "\n";
 
         // copia os dados do frame para uma Message interna
         // e libera o buffer da NIC imediatamente — não fica segurando o pool

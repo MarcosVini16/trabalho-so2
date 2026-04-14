@@ -117,7 +117,7 @@ class Protocol
         // extrai dados de um buffer recebido e preenche src
         int receive(Buffer* buf, Address* src, void* data, unsigned int size) {
             if(!buf) return -1;
-            std::cout << "[protocol] receive chamado buf->size()=" << buf->size() << "\n";
+            //std::cout << "[protocol] receive chamado buf->size()=" << buf->size() << "\n";
             auto* pkt = buf->data<Packet>();
             if(src) {
                 src->paddr = pkt->header.src;
@@ -126,13 +126,13 @@ class Protocol
             uint16_t real_size = ntohs(pkt->header.payload_size);
             unsigned int len = std::min(size, static_cast<unsigned int>(real_size));
             std::memcpy(data, pkt->data, len);
-            std::cout << "[protocol] receive retornou len=" << len << "\n";
+            //std::cout << "[protocol] receive retornou len=" << len << "\n";
             return static_cast<int>(len);
         }
 
         // Communicators se registram aqui
         void attach(Observer* obs, Port port) {
-            std::cout << "[protocol] attach porta=" << port << "\n";
+            //std::cout << "[protocol] attach porta=" << port << "\n";
             Observed::attach(obs, port);
         }
         void detach(Observer* obs, Port port) {
@@ -147,10 +147,10 @@ class Protocol
     private:
         // chamado pela NIC quando chega um frame com PROTO correto
         void update(Ethernet::Protocol, Buffer* buf) override {
-            std::cout << "[protocol] update chamado\n";
+            //std::cout << "[protocol] update chamado\n";
             auto* pkt = buf->data<Packet>();
             Port dst_port = ntohs(pkt->header.dst_port);
-            std::cout << "[protocol] dst_port=" << dst_port << "\n";
+            //std::cout << "[protocol] dst_port=" << dst_port << "\n";
 
             if(dst_port == 0) {
                 Observed::notify(1000, buf);

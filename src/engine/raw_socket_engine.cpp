@@ -96,9 +96,9 @@ RawSocketEngine::~RawSocketEngine() {
 
 int RawSocketEngine::_send(const void* buf, size_t len) {
     auto* frame = reinterpret_cast<const Ethernet::Frame*>(buf);
-    std::cout << "[engine] enviando frame EtherType=0x" 
-              << std::hex << ntohs(frame->type) 
-              << " len=" << std::dec << len << "\n";
+    //std::cout << "[engine] enviando frame EtherType=0x" 
+              //<< std::hex << ntohs(frame->type) 
+              //<< " len=" << std::dec << len << "\n";
     // Set up the socket address structure for sending (broadcast)
     struct sockaddr_ll addr{};
     addr.sll_family  = AF_PACKET;
@@ -116,8 +116,8 @@ int RawSocketEngine::_send(const void* buf, size_t len) {
         std::cerr << "[engine] sendto falhou: " << strerror(errno) << "\n";
 
     
-    std::cout << "[engine] sendto retornou=" << sent 
-              << " ifindex=" << _ifindex << "\n";
+    //std::cout << "[engine] sendto retornou=" << sent 
+              //<< " ifindex=" << _ifindex << "\n";
     
     return static_cast<int>(sent);
 }

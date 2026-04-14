@@ -31,11 +31,11 @@ public:
         for(auto& buf : _buffer) {
             if(buf.is_free()) {
                 buf.allocate();
-                buf.set_size(size);
+                buf.set_size(sizeof(Ethernet::Address) * 2 + sizeof(Ethernet::Protocol) + size);
                 buf.frame()->dst = dst;
                 buf.frame()->src = _address;
-                std::cout << "[nic] alloc EtherType=0x" 
-          << std::hex << prot << std::dec << "\n";
+                //std::cout << "[nic] alloc EtherType=0x" 
+          //<< std::hex << prot << std::dec << "\n";
                 buf.frame()->type = htons(prot); // htons to convert protocol number to network byte order (correctly filter frames in the NIC)
                 buf.set_owner(this); // associa o buffer a esta NIC para facilitar a liberação posterior
                 return &buf;
@@ -78,8 +78,8 @@ private:
         if(frame->src == _address) return;
 
         uint16_t etype = ntohs(frame->type);
-        std::cout << "[nic] frame recebido EtherType=0x" 
-            << std::hex << etype << std::dec << "\n";
+        //std::cout << "[nic] frame recebido EtherType=0x" 
+            //<< std::hex << etype << std::dec << "\n";
 
         std::lock_guard<std::mutex> lock(_pool_mutex);
         for(auto& buf : _buffer) {
@@ -94,7 +94,7 @@ private:
                 return;
             }
         }
-        std::cout << "[nic] pool esgotado, frame descartado\n";
+        //std::cout << "[nic] pool esgotado, frame descartado\n";
     }
 
     Address                  _address;
