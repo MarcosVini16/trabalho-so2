@@ -3,6 +3,5 @@
 
 class Sensor : public Component {
 public:
-    Sensor(Protocol::Address address) : Component(address) {}
-    ~Sensor() override = default;
+    Sensor(Protocol::Address address, key_t key, Ethernet::Address mac) : Component(address, key, mac) {}
 };

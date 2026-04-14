@@ -36,5 +36,5 @@ private:
     NIC<RawSocketEngine> rs_nic; // NIC para comunicação com a rede externa (outros veículos)
     Protocol protocol; // Protocolo de comunicação
     Communicator         _communicator; // Camada de comunicação para enviar/receber mensagem
-    NIC<ShmEngine>      shm_nic; // NIC para comunicação com componentes locais
+    // NIC<ShmEngine>      shm_nic; // NIC para comunicação com componentes locais
 };

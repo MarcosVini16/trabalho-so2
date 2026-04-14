@@ -7,6 +7,7 @@
 #include "observe/conditional.hpp"
 #include <arpa/inet.h> // for htons and ntohs
 #include <list>
+#include <iostream>
 
 class Protocol
     : public ConditionalObserver<Buffer<Ethernet::Frame>,
@@ -149,11 +150,14 @@ class Protocol
         void update(Ethernet::Protocol, Buffer* buf) override {
             std::cout << "[protocol] update chamado\n";
             auto* pkt = buf->data<Packet>();
+            Ethernet::Address src_mac = pkt->header.src;
             Port dst_port = ntohs(pkt->header.dst_port);
             std::cout << "[protocol] dst_port=" << dst_port << "\n";
-
             if(dst_port == 0) {
                 Observed::notify(1000, buf);
+                // Notifica outros tbm (teste)
+                Observed::notify(1001, buf);
+                Observed::notify(1002, buf);
             } else {
                 Observed::notify(dst_port, buf);
             }
