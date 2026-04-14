@@ -1,4 +1,5 @@
 #pragma once
+#include "../utils/semaphore.hpp"
 #include "engine.hpp"
 #include "../ethernet.hpp"
 #include <string>
@@ -16,6 +17,9 @@ class RawSocketEngine : public Engine {
         Ethernet::Address read_address();  // lê o MAC da interface
         Ethernet::Address address() const { return _address; }
         
+        // _sem é o semáforo que a thread de recepção usa pra dormir/acordar
+        // sinal cadastrado pra acordar a thread de recepcão
+        void _notify() { _sem.v(); }
 
     protected:
         /*
@@ -39,9 +43,9 @@ class RawSocketEngine : public Engine {
          */
         void _receive_loop();
 
-        
-
     private:
+        // semáforo que sincroniza o SIGIO com a thread de recepção
+        Semaphore _sem{0};
         int _fd; // File descriptor for the raw socket
         std::string _iface; // Network interface to bind to (e.g., "eth0", "wlan0", etc.)
         std::thread _thread; // Thread for listening to incoming data

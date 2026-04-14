@@ -12,6 +12,18 @@
 #include <stdexcept>
 #include <iostream>
 #include <cerrno>
+#include <signal.h>
+#include <fcntl.h>
+
+// ponteiro global para a instância 
+static RawSocketEngine* _instance = nullptr;
+
+// agrupa multiplos frames em um único SIGIO
+// esse handler é chamado uma vez, não uma vez por frame
+static void sigio_handler(int) {
+    // acorda a thread de recepção
+    if(_instance) _instance->_notify();
+}
 
 
 RawSocketEngine::RawSocketEngine(const std::string& iface)
@@ -42,7 +54,36 @@ RawSocketEngine::RawSocketEngine(const std::string& iface)
     if(bind(_fd, reinterpret_cast<struct sockaddr*>(&addr), sizeof(addr)) < 0)
         throw std::runtime_error("bind() falhou");
 
-    // 5. inicia thread de recepção
+    // 5. configura SIGIO
+
+    // salva o ponteiro pra essa instância em uma variável global
+    // handler de sinal não pode ter método de instância
+    _instance = this;
+
+    // cria a estrutura que define o comportamento do sinal
+    struct sigaction sa{};
+
+    // define qual função será chamada quando SIGIO chegar
+    sa.sa_handler = sigio_handler;
+
+    // garante que nenhum sinal está bloqueando durante o handler
+    sigemptyset(&sa.sa_mask);
+
+    // sem flags especiais
+    sa.sa_flags = 0;
+
+    // registra o handler para o sinal SIGIO no SO
+    sigaction(SIGIO, &sa, nullptr);
+
+    // diz ao SO que esse processo é dono do socket
+    // ou seja, é ele que vai receber o SIGIO quando dados chegarem
+    fcntl(_fd, F_SETOWN, getpid());
+
+    // ativa o modo assíncrono no socket
+    // a partir daqui o SO dispara SIGIO automaticamente quando dados chegarem
+    fcntl(_fd, F_SETFL, fcntl(_fd, F_GETFL) | O_ASYNC);
+
+    // 6. inicia thread de recepção
     _thread = std::thread([this]{ _receive_loop(); });
 }
 
@@ -83,15 +124,31 @@ int RawSocketEngine::_send(const void* buf, size_t len) {
 
 void RawSocketEngine::_receive_loop() {
     uint8_t buf[sizeof(Ethernet::Frame)];
+
+
     while(_running) {
-        ssize_t len = recvfrom(_fd, buf, sizeof(buf), 0, nullptr, nullptr);
-        if(len > 0) {
+
+        // thread dorme aqui esperando o SIGIO chamar _notify() -> _sem.v()
+        _sem.p();
+
+        // loop de dreno -> lê tudo que tá no socket
+        while(_running) {
+
+            // MSG_DONTWAIT faz retornar imediatamente se não houver mais dados
+            ssize_t len = recvfrom(_fd, buf, sizeof(buf), MSG_DONTWAIT, nullptr, nullptr);
+
+            // len <= 0 significa que o socket está vazio — para o dreno
+            if(len <= 0) break;
+
+            // interpreta o buffer como um frame Ethernet
             auto* frame = reinterpret_cast<Ethernet::Frame*>(buf);
-            uint16_t etype = ntohs(frame->type);
-            // ignora frames que não são do projeto
-            if(etype == 0x8888)
+
+            // filtra só frames do projeto (EtherType 0x8888)
+            if(ntohs(frame->type) == 0x8888)
+                // passa o frame para a NIC processar via Observer
                 _handle(buf, static_cast<size_t>(len));
         }
+        // socket drenado — volta para _sem.p() e dorme até o próximo SIGIO
     }
 }
 
