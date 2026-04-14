@@ -7,6 +7,7 @@
 #include "observe/conditional.hpp"
 #include <arpa/inet.h> // for htons and ntohs
 #include <list>
+#include <execinfo.h>
 #include <iostream>
 
 class Protocol
@@ -72,8 +73,16 @@ class Protocol
         }
 
         ~Protocol() {
-            for(auto* nic : _nics)
-                detach_nic(nic);
+            std::cout << "[protocol] destrutor iniciado\n";
+            // copia a lista antes de iterar para evitar invalidar o iterador
+            auto nics_copy = _nics;
+            for(auto* nic : nics_copy) {
+                std::cout << "[protocol] detach_nic nic=" << (void*)nic << "\n";
+                nic->detach(this, PROTO);
+                std::cout << "[protocol] detach ok\n";
+            }
+            _nics.clear();
+            std::cout << "[protocol] destrutor concluido\n";
         }
 
         // Multiple NICs
@@ -135,9 +144,6 @@ class Protocol
         void attach(Observer* obs, Port port) {
             std::cout << "[protocol] attach porta=" << port << "\n";
             Observed::attach(obs, port);
-        }
-        void detach(Observer* obs, Port port) {
-            Observed::detach(obs, port);
         }
 
         void free(Buffer* buf) {

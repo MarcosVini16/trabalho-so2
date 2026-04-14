@@ -32,7 +32,7 @@ public:
         for(auto& buf : _buffer) {
             if(buf.is_free()) {
                 buf.allocate();
-                buf.set_size(size);
+                buf.set_size(sizeof(Ethernet::Address) * 2 + sizeof(Ethernet::Protocol) + size);
                 buf.frame()->dst = dst;
                 buf.frame()->src = _address;
                 std::cout << "[nic] alloc EtherType=0x" 

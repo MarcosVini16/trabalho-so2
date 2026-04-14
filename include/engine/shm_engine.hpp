@@ -55,6 +55,7 @@ public:
         struct sigaction sa{};
         sa.sa_handler = &ShmEngine::_signal_handler;
         sigemptyset(&sa.sa_mask);
+        sigaddset(&sa.sa_mask, SIGUSR1); // adiciona essa linha
         sa.sa_flags = SA_RESTART;
         sigaction(SIGUSR1, &sa, nullptr);
 
@@ -64,9 +65,12 @@ public:
     }
 
     ~ShmEngine() {
-        _sem_op(MUTEX, -1);
-        _ch->leave(getpid());
-        _sem_op(MUTEX, +1);
+        // desinstala o handler de SIGUSR1 antes de destruir
+        signal(SIGUSR1, SIG_DFL);
+        
+        int i = _ch->find(getpid());
+        if (i >= 0) _ch->pids[i] = 0;
+        
         shmdt(_ch);
     }
 
