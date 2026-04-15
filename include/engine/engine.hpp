@@ -3,8 +3,8 @@
 #include <cstddef>
 
 /*
- * Base class for all engine types
- * Defines the interface for sending and handling frames.
+ * Classe base para uma Engine de comunicação entre processos. 
+ * Cada implementação específica deve implementar os métodos de envio e manipulação de mensagens.
  */
 class Engine {
     protected:

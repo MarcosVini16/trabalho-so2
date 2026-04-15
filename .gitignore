@@ -1,3 +1,4 @@
 /build
 initramfs.cpio
 *.tar.xz
+.vscode

@@ -7,6 +7,8 @@
 #include "observe/conditional.hpp"
 #include <arpa/inet.h> // for htons and ntohs
 #include <list>
+#include <execinfo.h>
+#include <iostream>
 
 class Protocol
     : public ConditionalObserver<Buffer<Ethernet::Frame>,
@@ -71,8 +73,16 @@ class Protocol
         }
 
         ~Protocol() {
-            for(auto* nic : _nics)
-                detach_nic(nic);
+            std::cout << "[protocol] destrutor iniciado\n";
+            // copia a lista antes de iterar para evitar invalidar o iterador
+            auto nics_copy = _nics;
+            for(auto* nic : nics_copy) {
+                std::cout << "[protocol] detach_nic nic=" << (void*)nic << "\n";
+                nic->detach(this, PROTO);
+                std::cout << "[protocol] detach ok\n";
+            }
+            _nics.clear();
+            std::cout << "[protocol] destrutor concluido\n";
         }
 
         // Multiple NICs
@@ -135,9 +145,6 @@ class Protocol
             //std::cout << "[protocol] attach porta=" << port << "\n";
             Observed::attach(obs, port);
         }
-        void detach(Observer* obs, Port port) {
-            Observed::detach(obs, port);
-        }
 
         void free(Buffer* buf) {
             if(buf && buf->owner())
@@ -149,11 +156,14 @@ class Protocol
         void update(Ethernet::Protocol, Buffer* buf) override {
             //std::cout << "[protocol] update chamado\n";
             auto* pkt = buf->data<Packet>();
+            Ethernet::Address src_mac = pkt->header.src;
             Port dst_port = ntohs(pkt->header.dst_port);
-            //std::cout << "[protocol] dst_port=" << dst_port << "\n";
-
+            std::cout << "[protocol] dst_port=" << dst_port << "\n";
             if(dst_port == 0) {
                 Observed::notify(1000, buf);
+                // Notifica outros tbm (teste)
+                Observed::notify(1001, buf);
+                Observed::notify(1002, buf);
             } else {
                 Observed::notify(dst_port, buf);
             }

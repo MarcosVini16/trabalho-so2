@@ -1,50 +1,47 @@
-// vehicle.hpp
-#pragma once
-#include <vector>
-#include <memory>
-#include <thread>
-#include "components/component.hpp"
+// vehicle.hpp (simplificado)
+#include "protocol.hpp"
+#include "engine/engine.hpp"
 #include "components/gateway.hpp"
-#include "utils/ports.hpp"
-
+#include "components/component.hpp"
+#include <vector>
 class Vehicle {
 public:
-    Vehicle(const std::string& iface, Ethernet::Address mac)
-        : _mac(mac),
-          _gateway({mac, Ports::GATEWAY}, iface)
-    {}
+    Vehicle(const std::string& iface)
+        : _gateway(iface)
+    {
+        // a chave é derivada do MAC da interface — único por VM
+        _key = _make_key(_gateway.address().paddr);
+    }
 
-    // registra um componente no veículo
-    // cada componente roda como processo separado na entrega final
-    // por ora, roda como thread para facilitar o teste
     template<typename C, typename... Args>
-    C& add_component(Args&&... args) {
-        auto ptr = std::make_unique<C>(std::forward<Args>(args)...);
+    C& add_component(Protocol::Port port, Args&&... args) {
+        Protocol::Address addr{_gateway.address().paddr, port};
+        // Component recebe a chave e o MAC — Engine faz o resto
+        auto ptr = std::make_unique<C>(addr, _key,
+                                       _gateway.address().paddr,
+                                       std::forward<Args>(args)...);
         C& ref = *ptr;
         _components.push_back(std::move(ptr));
         return ref;
     }
 
-    // inicia todos os componentes em threads separadas
-    // substitua por fork()/exec() na entrega final
-    void run() {
-        for(auto& c : _components) {
-            _threads.emplace_back([&c]() {
-                Message msg;
-                Protocol::Address from;
-                while(true)
-                    c->receive(msg, from);
-            });
-        }
-        for(auto& t : _threads)
-            t.join();
+    Ethernet::Address mac_address() const {
+        return _gateway.address().paddr;
     }
 
-    Gateway& gateway() { return _gateway; }
+    key_t shm_key() const {
+        return _key;
+    }
 
 private:
-    Ethernet::Address              _mac;
-    Gateway                        _gateway;
+    static key_t _make_key(Ethernet::Address mac) {
+        // usa os últimos 4 bytes do MAC como base da chave
+        key_t k = 0;
+        std::memcpy(&k, mac.bytes + 2, 4);
+        return k ? k : 1;
+    }
+
+    Gateway _gateway;
+    key_t   _key;
     std::vector<std::unique_ptr<Component>> _components;
-    std::vector<std::thread>       _threads;
 };
