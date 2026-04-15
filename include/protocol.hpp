@@ -105,7 +105,7 @@ class Protocol
         int send(Address src, Address dst, const void* data, unsigned int size) {
             for(auto* nic : _nics) {
                 if (dst.paddr != nic->expected_dst()) {
-                    std::cout << "[protocol] NIC não passou!"
+                    std::cout << "[protocol] NIC não passou!";
                     continue; // esta NIC não é adequada para o destino
                 }
                 std::cout << "[protocol] NIC passou, tentando enviar...\n";
