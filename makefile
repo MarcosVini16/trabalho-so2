@@ -15,10 +15,6 @@ KERNEL_IMAGE = env/Image
 # sistema de arquivos empacotado que a VM carrega na inicialização
 INITRAMFS = initramfs.cpio
 
-# fontes comuns às engines (compilados junto por ser header-only ou .cpp)
-ENGINE_SRCS = src/engine/raw_socket_engine.cpp \
-              src/engine/shm_engine.cpp
-
 .PHONY: all clean initramfs run shm_test \
         vm1 vm2 vm3 vm4 vm5 vm_responder vm_rtt
 
@@ -29,13 +25,13 @@ ENGINE_SRCS = src/engine/raw_socket_engine.cpp \
 all: $(VEHICLE)
 
 # binário principal do veículo (cross-compilado para RISC-V)
-$(VEHICLE): app/vehicle_main.cpp $(ENGINE_SRCS)
+$(VEHICLE): app/vehicle_main.cpp
 	@mkdir -p build
 	$(CXX) $(CXXFLAGS) $^ -o $@ $(LDFLAGS)
 
 # teste de shm — compilado para a arquitetura nativa do host (sem cross)
 # útil para validar ShmEngine sem precisar subir QEMU
-$(SHM_TEST): app/shm_test.cpp $(ENGINE_SRCS)
+$(SHM_TEST): app/shm_test.cpp 
 	@mkdir -p build
 	g++ -std=c++20 -Wall -Wextra -Iinclude -pthread $^ -o $@ -lpthread
 
