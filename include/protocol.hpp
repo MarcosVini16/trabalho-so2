@@ -171,6 +171,7 @@ class Protocol
                     Observed::notify(1000, buf);
                     Observed::notify(1001, buf);
                     Observed::notify(1002, buf);
+                    Observed::notify(1003, buf);
                 }
                 else {
                     Observed::notify(1000, buf);
