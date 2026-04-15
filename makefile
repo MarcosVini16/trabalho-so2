@@ -5,13 +5,6 @@ CXX      = riscv64-linux-gnu-g++
 CXXFLAGS = -std=c++20 -Wall -Wextra -Iinclude -pthread -static
 LDFLAGS  = -lpthread -static
 
-# arquivos fonte do projeto
-SRCS = src/engine/raw_socket_engine.cpp \
-       src/engine/shm_engine.cpp \
-       src/components/component.cpp
-
-# arquivos objeto gerados na pela compilação
-OBJS     = $(SRCS:.cpp=.o)
 # binário final
 VEHICLE  = build/vehicle
 
@@ -27,7 +20,7 @@ INITRAMFS = initramfs.cpio
 # compilar o binário RISC-V
 all: $(VEHICLE)
 
-$(VEHICLE): app/vehicle_main.cpp $(OBJS)
+$(VEHICLE): app/vehicle_main.cpp
 	@mkdir -p build
 	$(CXX) $(CXXFLAGS) $^ -o $@ $(LDFLAGS)
 
@@ -130,4 +123,4 @@ vm_rtt: initramfs
 
 # Remove binários e arquivos gerados
 clean:
-	rm -rf build $(OBJS) $(INITRAMFS)
+	rm -rf build $(INITRAMFS)
