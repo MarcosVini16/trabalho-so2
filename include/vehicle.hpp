@@ -10,7 +10,7 @@ public:
         : _gateway(iface)
     {
         // a chave é derivada do MAC da interface — único por VM
-        _key = _make_key(_gateway.address().paddr);
+        _key = _gateway.key();
     }
 
     template<typename C, typename... Args>
@@ -31,6 +31,10 @@ public:
 
     key_t shm_key() const {
         return _key;
+    }
+
+    Gateway& gateway() {
+        return _gateway;
     }
 
 private:

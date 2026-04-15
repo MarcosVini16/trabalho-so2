@@ -33,6 +33,15 @@ public:
         ) > 0;
     }
 
+    bool share(const Message* msg) {
+        return _channel->send(
+            _address,
+            _address, // envia para nós mesmos
+            msg->data(),
+            msg->size()
+        ) > 0;
+    }
+
     bool receive(Message* msg) {
         // bloqueia a thread até ter algum buffer na lista
         // (o update acorda via _semaphore.v())

@@ -73,6 +73,10 @@ public:
 
     Address address() const override { return _address; }
 
+    Address expected_dst() const override {
+        return E::expected_dst();
+    }
+
 private:
     void _handle(void* raw, size_t len) override {
         std::cout << "[nic] _handle chamado len=" << len << "\n";

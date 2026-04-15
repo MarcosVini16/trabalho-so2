@@ -29,6 +29,7 @@ public:
     virtual void    attach(Observer* obs, Protocol_Number prot) = 0;
     virtual void    detach(Observer* obs, Protocol_Number prot) = 0;
     virtual Address address() const = 0;
+    virtual Address expected_dst() const = 0;
 
     virtual ~NICBase() = default;
 };

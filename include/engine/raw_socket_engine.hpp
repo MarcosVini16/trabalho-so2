@@ -68,6 +68,11 @@ class RawSocketEngine : public Engine {
         }
 
         Ethernet::Address address() const { return _address; }
+
+        Ethernet::Address expected_dst() const override {
+            // para comunicação local, esperamos broadcast
+            return Ethernet::Address::BROADCAST();
+        }
     
     protected:
         int _send(const void* buf, size_t len) override {

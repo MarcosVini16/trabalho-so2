@@ -83,6 +83,11 @@ public:
 
     Ethernet::Address read_address() const { return _address; }
 
+    Ethernet::Address expected_dst() const override {
+        // para comunicação local, esperamos enviar para nós mesmos
+        return _address;
+    }
+
 protected:
     // chamado por NIC::send(buf) → E::_send(frame, size)
     int _send(const void* buf, size_t len) override {
