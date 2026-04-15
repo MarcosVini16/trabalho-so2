@@ -66,7 +66,7 @@ public:
 
     ~ShmEngine() {
         // desinstala o handler de SIGUSR1 antes de destruir
-        signal(SIGUSR1, SIG_DFL);
+        signal(SIGUSR1, SIG_IGN);
         
         int i = _ch->find(getpid());
         if (i >= 0) _ch->pids[i] = 0;

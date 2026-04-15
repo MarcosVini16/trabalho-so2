@@ -77,12 +77,12 @@ class Protocol
             // copia a lista antes de iterar para evitar invalidar o iterador
             auto nics_copy = _nics;
             for(auto* nic : nics_copy) {
-                std::cout << "[protocol] detach_nic nic=" << (void*)nic << "\n";
+                //std::cout << "[protocol] detach_nic nic=" << (void*)nic << "\n";
                 nic->detach(this, PROTO);
-                std::cout << "[protocol] detach ok\n";
+                //std::cout << "[protocol] detach ok\n";
             }
             _nics.clear();
-            std::cout << "[protocol] destrutor concluido\n";
+            //std::cout << "[protocol] destrutor concluido\n";
         }
 
         // Multiple NICs
@@ -105,10 +105,10 @@ class Protocol
         int send(Address src, Address dst, const void* data, unsigned int size) {
             for(auto* nic : _nics) {
                 if (dst.paddr != nic->expected_dst()) {
-                    std::cout << "[protocol] NIC não passou!";
+                    //std::cout << "[protocol] NIC não passou!";
                     continue; // esta NIC não é adequada para o destino
                 }
-                std::cout << "[protocol] NIC passou, tentando enviar...\n";
+                //std::cout << "[protocol] NIC passou, tentando enviar...\n";
                 auto* buf = nic->alloc(Ethernet::Address::BROADCAST(),
                                     htons(PROTO), sizeof(Header) + size); // htons to convert protocol number to network byte order (correctly filter frames in the NIC)
                 if(!buf) continue;
@@ -163,7 +163,7 @@ class Protocol
             auto* pkt = buf->data<Packet>();
             Ethernet::Address src_mac = pkt->header.src;
             Port dst_port = ntohs(pkt->header.dst_port);
-            std::cout << "[protocol] dst_port=" << dst_port << "\n";
+            //std::cout << "[protocol] dst_port=" << dst_port << "\n";
             // Checa se foi shm (próprio endereço)
             if(dst_port == 0) {
                 if (pkt->header.dst != Ethernet::Address::BROADCAST()) {

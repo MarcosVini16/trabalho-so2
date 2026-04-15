@@ -33,11 +33,11 @@ public:
         ) > 0;
     }
 
-    bool share(const Message* msg) {
-        Protocol::Address dst_addr{_address.paddr, 0};
+    bool share(const Message* msg, Protocol::Port dst_port) {
+        Protocol::Address dst_addr{_address.paddr, dst_port};
         return _channel->send(
             _address,
-            dst_addr, // envia para nós mesmos
+            dst_addr,
             msg->data(),
             msg->size()
         ) > 0;
@@ -75,6 +75,7 @@ public:
         Protocol::Address from;
         int size = _channel->receive(buf, &from, msg->data(), Message::MAX_SIZE);
         msg->set_size(size > 0 ? size : 0);
+        msg->set_src(from.paddr);
 
         _data.insert(msg);
         _semaphore.v();

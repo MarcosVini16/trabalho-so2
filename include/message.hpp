@@ -34,6 +34,9 @@ class Message {
     // o communicator chama isso depois de receber dados pra registrar quantos bytes chegaram. (pra saber quando o conteúdo válido termina)
     void set_size(unsigned int s) { _size = s; }
 
+    Ethernet::Address src() const { return _src; }
+    void set_src(Ethernet::Address addr) { _src = addr; }
+
     private:
 
     uint8_t      _data[MAX_SIZE];

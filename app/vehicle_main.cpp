@@ -33,7 +33,7 @@ void run_sensor(key_t key, Ethernet::Address mac) {
             std::string reply = "sensor-ack: " + txt;
             std::memcpy(resp.data(), reply.c_str(), reply.size());
             resp.set_size(reply.size());
-            comm.share(&resp);
+            comm.share(&resp, Ports::GATEWAY);
         }
     }
 }
@@ -75,6 +75,7 @@ void run_powertrain(key_t key, Ethernet::Address mac) {
 // ---------------------------------------------------------------------------
 
 // Ecoa "ping" → "pong" via raw socket (inter-VM)
+// precisa rodar make vm_responder antes de make vm_rtt
 void run_responder(Gateway& gw) {
     std::cout << "[responder] aguardando ping...\n";
     while(true) {
@@ -87,6 +88,7 @@ void run_responder(Gateway& gw) {
                 std::memcpy(resp.data(), pong.c_str(), pong.size());
                 resp.set_size(pong.size());
                 gw.send(resp);
+                std::cout << "[responder] respondeu pong" << "\n";
             }
         }
     }
@@ -151,7 +153,9 @@ void run_normal(Gateway& gw) {
             std::string txt = "local-msg-" + std::to_string(count++);
             std::memcpy(msg.data(), txt.c_str(), txt.size());
             msg.set_size(txt.size());
-            bool ok = gw.share(msg);
+            gw.share(msg, Ports::SENSOR);
+            gw.share(msg, Ports::ACTUATOR);
+            bool ok = gw.share(msg, Ports::POWERTRAIN);
             std::cout << "[gateway/shm] compartilhou '" << txt
                       << "' ok=" << ok << "\n";
         }

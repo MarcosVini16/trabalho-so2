@@ -1,13 +1,11 @@
 leo:
-- juntar os arquivos
-- melhorar os comentários
-
-?:
-- fazer teste de benchmark
-- fazer os slides
+-
 
 marcos:
-- entrega 2
+-
 
 rita:
-- fazer os diagramas
+-
+
+?:
+- arrumar o seg_fault aos 31 segundos

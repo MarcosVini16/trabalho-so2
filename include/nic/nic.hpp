@@ -79,8 +79,8 @@ public:
 
 private:
     void _handle(void* raw, size_t len) override {
-        std::cout << "[nic] _handle chamado len=" << len << "\n";
-        std::cout << "[nic] pid = " << getpid() << "\n";
+        //std::cout << "[nic] _handle chamado len=" << len << "\n";
+        //std::cout << "[nic] pid = " << getpid() << "\n";
         auto* frame = static_cast<Ethernet::Frame*>(raw);
 
         uint16_t etype = ntohs(frame->type);

@@ -27,10 +27,10 @@ public:
         return _communicator.send(&msg);
     }
 
-    bool share(const Message& msg) {
-        return _communicator.share(&msg);
+    bool share(const Message& msg, Protocol::Port dst_port) {
+        return _communicator.share(&msg, dst_port);
+        
     }
-
     bool receive(Message& msg) {
         return _communicator.receive(&msg);
     }
