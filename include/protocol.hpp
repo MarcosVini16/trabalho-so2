@@ -164,11 +164,18 @@ class Protocol
             Ethernet::Address src_mac = pkt->header.src;
             Port dst_port = ntohs(pkt->header.dst_port);
             std::cout << "[protocol] dst_port=" << dst_port << "\n";
+            // Checa se foi shm (próprio endereço)
             if(dst_port == 0) {
-                Observed::notify(1000, buf);
-                // Notifica outros tbm (teste)
-                Observed::notify(1001, buf);
-                Observed::notify(1002, buf);
+                if (pkt->header.dst != Ethernet::Address::BROADCAST()) {
+                    // notifica todos
+                    Observed::notify(1000, buf);
+                    Observed::notify(1001, buf);
+                    Observed::notify(1002, buf);
+                }
+                else {
+                    Observed::notify(1000, buf);
+                }
+        
             } else {
                 Observed::notify(dst_port, buf);
             }

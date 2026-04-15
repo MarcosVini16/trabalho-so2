@@ -34,9 +34,13 @@ public:
     }
 
     bool share(const Message* msg) {
+        Protocol::Address dst_addr{
+            .paddr = _address.paddr,
+            .port = 0 // porta 0 indica comunicação local (shm)
+        };
         return _channel->send(
             _address,
-            _address, // envia para nós mesmos
+            dst_addr, // envia para nós mesmos
             msg->data(),
             msg->size()
         ) > 0;

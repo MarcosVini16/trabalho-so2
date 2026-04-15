@@ -1,12 +1,12 @@
 # compilador cross para RISC-V
 CXX      = riscv64-linux-gnu-g++
 
-# inclui todas as libs
 CXXFLAGS = -std=c++20 -Wall -Wextra -Iinclude -pthread -static
 LDFLAGS  = -lpthread -static
 
-# binário final
-VEHICLE  = build/vehicle
+# binários
+VEHICLE   = build/vehicle
+SHM_TEST  = build/shm_test
 
 # sistema de arquivos base da VM (busybox pré compilado)
 BUSYBOX_INSTALL = env/initramfs
@@ -15,60 +15,60 @@ KERNEL_IMAGE = env/Image
 # sistema de arquivos empacotado que a VM carrega na inicialização
 INITRAMFS = initramfs.cpio
 
-.PHONY: all clean initramfs run vm1 vm2 vm3 vm4 vm5 vm_responder vm_rtt
+# fontes comuns às engines (compilados junto por ser header-only ou .cpp)
+ENGINE_SRCS = src/engine/raw_socket_engine.cpp \
+              src/engine/shm_engine.cpp
 
-# compilar o binário RISC-V
+.PHONY: all clean initramfs run shm_test \
+        vm1 vm2 vm3 vm4 vm5 vm_responder vm_rtt
+
+# --------------------------------------------------------------------------
+# Targets de compilação
+# --------------------------------------------------------------------------
+
 all: $(VEHICLE)
 
-$(VEHICLE): app/vehicle_main.cpp
+# binário principal do veículo (cross-compilado para RISC-V)
+$(VEHICLE): app/vehicle_main.cpp $(ENGINE_SRCS)
 	@mkdir -p build
 	$(CXX) $(CXXFLAGS) $^ -o $@ $(LDFLAGS)
 
-# compila cada .cpp em .o
-%.o: %.cpp
-	$(CXX) $(CXXFLAGS) -c $< -o $@
+# teste de shm — compilado para a arquitetura nativa do host (sem cross)
+# útil para validar ShmEngine sem precisar subir QEMU
+$(SHM_TEST): app/shm_test.cpp $(ENGINE_SRCS)
+	@mkdir -p build
+	g++ -std=c++20 -Wall -Wextra -Iinclude -pthread $^ -o $@ -lpthread
+
+shm_test: $(SHM_TEST)
+	@echo ">>> executando shm_test (requer permissão para IPC SysV)"
+	sudo ./$(SHM_TEST)
+
+# --------------------------------------------------------------------------
+# Targets de VM
+# --------------------------------------------------------------------------
 
 # Copia o binário para dentro do BusyBox e reempacota o initramfs
-# O initramfs é o sistema de arquivos que a VM usa ao inicializar
 initramfs: all
 	cp $(VEHICLE) $(BUSYBOX_INSTALL)/
 	cd $(BUSYBOX_INSTALL) && find . | cpio -o -H newc > ../../$(INITRAMFS)
 
-# Compila, empacota o initramfs e sobe 2 VMs QEMU
-# As VMs se comunicam via socket multicast no grupo 230.0.0.1:1234
-# Cada VM tem um MAC diferente para ser identificada na rede
+# Sobe 5 VMs em modo normal (background), cada uma com MAC único
 run: initramfs
-	qemu-system-riscv64 -m 128M -M virt -nographic \
-		-kernel $(KERNEL_IMAGE) -initrd $(INITRAMFS) \
-		--append "root=/dev/ram" \
-		-netdev socket,id=net0,mcast=230.0.0.1:1234 \
-		-device virtio-net-device,netdev=net0,mac=00:00:00:00:00:01 \
-		> /dev/null 2>&1 &
-	qemu-system-riscv64 -m 128M -M virt -nographic \
-		-kernel $(KERNEL_IMAGE) -initrd $(INITRAMFS) \
-		--append "root=/dev/ram" \
-		-netdev socket,id=net0,mcast=230.0.0.1:1234 \
-		-device virtio-net-device,netdev=net0,mac=00:00:00:00:00:02 \
-		> /dev/null 2>&1 &
-	qemu-system-riscv64 -m 128M -M virt -nographic \
-		-kernel $(KERNEL_IMAGE) -initrd $(INITRAMFS) \
-		--append "root=/dev/ram" \
-		-netdev socket,id=net0,mcast=230.0.0.1:1234 \
-		-device virtio-net-device,netdev=net0,mac=00:00:00:00:00:03 \
-		> /dev/null 2>&1 &
-	qemu-system-riscv64 -m 128M -M virt -nographic \
-		-kernel $(KERNEL_IMAGE) -initrd $(INITRAMFS) \
-		--append "root=/dev/ram" \
-		-netdev socket,id=net0,mcast=230.0.0.1:1234 \
-		-device virtio-net-device,netdev=net0,mac=00:00:00:00:00:04 \
-		> /dev/null 2>&1 &
+	@for i in 1 2 3 4; do \
+		qemu-system-riscv64 -m 128M -M virt -nographic \
+			-kernel $(KERNEL_IMAGE) -initrd $(INITRAMFS) \
+			--append "root=/dev/ram" \
+			-netdev socket,id=net0,mcast=230.0.0.1:1234 \
+			-device virtio-net-device,netdev=net0,mac=00:00:00:00:00:0$$i \
+			> /dev/null 2>&1 & \
+	done
 	qemu-system-riscv64 -m 128M -M virt -nographic \
 		-kernel $(KERNEL_IMAGE) -initrd $(INITRAMFS) \
 		--append "root=/dev/ram" \
 		-netdev socket,id=net0,mcast=230.0.0.1:1234 \
 		-device virtio-net-device,netdev=net0,mac=00:00:00:00:00:05
 
-# sobe a VM 1 isolada — rode em um terminal separado
+# VMs individuais — cada uma em terminal separado
 vm1: initramfs
 	qemu-system-riscv64 -m 128M -M virt -nographic \
 		-kernel $(KERNEL_IMAGE) -initrd $(INITRAMFS) \
@@ -76,7 +76,6 @@ vm1: initramfs
 		-netdev socket,id=net0,mcast=230.0.0.1:1234 \
 		-device virtio-net-device,netdev=net0,mac=00:00:00:00:00:01
 
-# sobe a VM 2 isolada — rode em um terminal separado
 vm2: initramfs
 	qemu-system-riscv64 -m 128M -M virt -nographic \
 		-kernel $(KERNEL_IMAGE) -initrd $(INITRAMFS) \
@@ -105,7 +104,7 @@ vm5: initramfs
 		-netdev socket,id=net0,mcast=230.0.0.1:1234 \
 		-device virtio-net-device,netdev=net0,mac=00:00:00:00:00:05
 
-# VM respondedora para teste de RTT
+# VM respondedora para teste de RTT — responde "pong" a cada "ping"
 vm_responder: initramfs
 	qemu-system-riscv64 -m 128M -M virt -nographic \
 		-kernel $(KERNEL_IMAGE) -initrd $(INITRAMFS) \
@@ -113,7 +112,7 @@ vm_responder: initramfs
 		-netdev socket,id=net0,mcast=230.0.0.1:1234 \
 		-device virtio-net-device,netdev=net0,mac=00:00:00:00:00:01
 
-# VM medidora de RTT
+# VM medidora de RTT — envia ping e mede round-trip time
 vm_rtt: initramfs
 	qemu-system-riscv64 -m 128M -M virt -nographic \
 		-kernel $(KERNEL_IMAGE) -initrd $(INITRAMFS) \
@@ -121,6 +120,6 @@ vm_rtt: initramfs
 		-netdev socket,id=net0,mcast=230.0.0.1:1234 \
 		-device virtio-net-device,netdev=net0,mac=00:00:00:00:00:02
 
-# Remove binários e arquivos gerados
+# --------------------------------------------------------------------------
 clean:
 	rm -rf build $(INITRAMFS)
