@@ -24,6 +24,11 @@ class RawSocketEngine : public Engine {
             _fd = socket(AF_PACKET, SOCK_RAW, htons(0x8888));
             if(_fd < 0)
                 throw std::runtime_error("socket() falhou — rode como root");
+            
+            timeval tv{};
+            tv.tv_sec = 0;
+            tv.tv_usec = 100000; // 100ms
+            setsockopt(_fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)); // timeout para recv
 
             // 2. busca o índice — preenche _ifindex
             struct ifreq ifr{};
@@ -54,6 +59,7 @@ class RawSocketEngine : public Engine {
             close(_fd);         // fecha o socket para interromper o recv
             if(_thread.joinable())
                 _thread.join();
+            std::cout << "[raw] processo " << getpid() << " saiu\n";
         }
 
         Ethernet::Address read_address() {
@@ -107,6 +113,14 @@ class RawSocketEngine : public Engine {
             uint8_t buf[sizeof(Ethernet::Frame)];
             while(_running) {
                 ssize_t len = recvfrom(_fd, buf, sizeof(buf), 0, nullptr, nullptr);
+                if (len < 0) {
+                    if(errno == EWOULDBLOCK || errno == EAGAIN) {
+                        // timeout, apenas continua esperando
+                        continue;
+                    } else {
+                        break;
+                    }
+                }
                 if(len > 0) {
                     auto* frame = reinterpret_cast<Ethernet::Frame*>(buf);
                     uint16_t etype = ntohs(frame->type);

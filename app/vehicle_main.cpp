@@ -1,4 +1,5 @@
 // app/vehicle_main.cpp
+#include <csignal>
 #include <unistd.h>
 #include <sys/wait.h>
 #include <iostream>
@@ -9,6 +10,26 @@
 #include <string>
 #include "../include/vehicle.hpp"
 #include "../include/utils/ports.hpp"
+
+// ---------------------------------------------------------------------------
+// Setup do signal de parada total
+// ---------------------------------------------------------------------------
+
+static volatile sig_atomic_t g_stop = 0;
+
+extern "C" void on_stop(int) {
+    g_stop = 1;
+}
+
+void setup_signals() {
+    struct sigaction sa{};
+    sa.sa_handler = on_stop;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = 0;
+    sigaction(SIGINT, &sa, nullptr);
+    sigaction(SIGTERM, &sa, nullptr);
+    sigaction(SIGALRM, &sa, nullptr);
+}
 
 // ---------------------------------------------------------------------------
 // Funções dos processos filhos (componentes intra-VM)
@@ -22,7 +43,7 @@ void run_sensor(key_t key, Ethernet::Address mac) {
     Protocol        protocol(&nic);
     Communicator    comm(&protocol, Protocol::Address{mac, Ports::SENSOR});
 
-    while(true) {
+    while(!g_stop) {
         Message msg;
         if(comm.receive(&msg)) {
             std::string txt(static_cast<char*>(msg.data()), msg.size());
@@ -45,7 +66,7 @@ void run_actuator(key_t key, Ethernet::Address mac) {
     Protocol        protocol(&nic);
     Communicator    comm(&protocol, Protocol::Address{mac, Ports::ACTUATOR});
 
-    while(true) {
+    while(!g_stop) {
         Message msg;
         if(comm.receive(&msg)) {
             std::string txt(static_cast<char*>(msg.data()), msg.size());
@@ -61,7 +82,7 @@ void run_powertrain(key_t key, Ethernet::Address mac) {
     Protocol        protocol(&nic);
     Communicator    comm(&protocol, Protocol::Address{mac, Ports::POWERTRAIN});
 
-    while(true) {
+    while(!g_stop) {
         Message msg;
         if(comm.receive(&msg)) {
             std::string txt(static_cast<char*>(msg.data()), msg.size());
@@ -78,7 +99,7 @@ void run_powertrain(key_t key, Ethernet::Address mac) {
 // precisa rodar make vm_responder antes de make vm_rtt
 void run_responder(Gateway& gw) {
     std::cout << "[responder] aguardando ping...\n";
-    while(true) {
+    while(!g_stop) {
         Message msg;
         if(gw.receive(msg)) {
             std::string txt(static_cast<char*>(msg.data()), msg.size());
@@ -98,7 +119,7 @@ void run_responder(Gateway& gw) {
 void run_rtt(Gateway& gw) {
     long total = 0;
     int  count = 0;
-    while(true) {
+    while(!g_stop) {
         Message msg;
         std::string txt = "ping";
         std::memcpy(msg.data(), txt.c_str(), txt.size());
@@ -129,10 +150,12 @@ void run_rtt(Gateway& gw) {
 // Modo normal: gateway envia para componentes locais via share()
 // e também para a rede via send(), enquanto recebe de ambos
 void run_normal(Gateway& gw) {
+    std::thread net_sender;
+    std::thread shm_sender;
     // thread que envia periodicamente para a rede (inter-VM)
-    std::thread net_sender([&gw]() {
+    net_sender = std::thread([&gw]() {
         int count = 0;
-        while(true) {
+        while(!g_stop) {
             Message msg;
             std::string txt = "rede-msg-" + std::to_string(count++);
             std::memcpy(msg.data(), txt.c_str(), txt.size());
@@ -145,9 +168,9 @@ void run_normal(Gateway& gw) {
     });
 
     // thread que envia periodicamente para componentes locais (intra-VM)
-    std::thread shm_sender([&gw]() {
+    shm_sender = std::thread([&gw]() {
         int count = 0;
-        while(true) {
+        while(!g_stop) {
             std::this_thread::sleep_for(std::chrono::seconds(1));
             Message msg;
             std::string txt = "local-msg-" + std::to_string(count++);
@@ -162,7 +185,7 @@ void run_normal(Gateway& gw) {
     });
 
     // loop principal: recebe de qualquer origem (rede ou shm)
-    while(true) {
+    while(!g_stop) {
         Message msg;
         if(gw.receive(msg)) {
             size_t sz = msg.size();
@@ -173,8 +196,9 @@ void run_normal(Gateway& gw) {
         }
     }
 
-    net_sender.join();
-    shm_sender.join();
+    // saída limpa
+    if(net_sender.joinable()) net_sender.join();
+    if(shm_sender.joinable()) shm_sender.join();
 }
 
 // ---------------------------------------------------------------------------
@@ -182,6 +206,12 @@ void run_normal(Gateway& gw) {
 // ---------------------------------------------------------------------------
 
 int main(int argc, char* argv[]) {
+    std::cout << "ESTAMOS TESTANDO PARADA POR SINAL!!!\n";
+    setup_signals();
+
+    int timeout_sec = (argc > 3) ? std::stoi(argv[3]) : 10; // timeout padrão de 10s para testes
+    alarm(timeout_sec); // para evitar travar indefinidamente durante testes
+
     const std::string iface = (argc > 1) ? argv[1] : "eth0";
     const std::string modo  = (argc > 2) ? argv[2] : "normal";
 
@@ -236,6 +266,13 @@ int main(int argc, char* argv[]) {
     } else {
         run_normal(gw);
     }
+
+    g_stop = 1; // sinaliza para os filhos pararem
+    
+    std::cout << "SHUTDOWN INICIADO, AGUARDANDO FILHOS TERMINAREM...\n";
+
+    for (pid_t pid : children)
+        kill(pid, SIGTERM); // garante que filhos sejam terminados
 
     for(pid_t pid : children)
         waitpid(pid, nullptr, 0);

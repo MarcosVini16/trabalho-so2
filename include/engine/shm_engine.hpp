@@ -25,6 +25,7 @@ public:
         _shmid = shmget(key, sizeof(ShmChannel), IPC_CREAT | 0666);
         if (_shmid < 0) { perror("shmget"); exit(1); }
 
+        // anexa o segmento à memória do processo
         _ch = static_cast<ShmChannel*>(shmat(_shmid, nullptr, 0));
         if (_ch == reinterpret_cast<void*>(-1)) { perror("shmat"); exit(1); }
 
@@ -56,7 +57,7 @@ public:
         sa.sa_handler = &ShmEngine::_signal_handler;
         sigemptyset(&sa.sa_mask);
         sigaddset(&sa.sa_mask, SIGUSR1); // adiciona essa linha
-        sa.sa_flags = SA_RESTART;
+        sa.sa_flags = 0;
         sigaction(SIGUSR1, &sa, nullptr);
 
         // guarda ponteiro para a instância atual para o handler
@@ -72,6 +73,8 @@ public:
         if (i >= 0) _ch->pids[i] = 0;
         
         shmdt(_ch);
+
+        std::cout << "[shm] processo " << getpid() << " saiu\n";
     }
 
     void _handle(void* buf, size_t len) {
@@ -119,7 +122,6 @@ protected:
 private:
     // handler de sinal — sem alocação dinâmica, sem locks (async-signal-safe)
     static void _signal_handler(int) {
-        std::cout << "[shm] sinal recebido\n";
         if (!_instance) return;
         _instance->_try_read();
     }

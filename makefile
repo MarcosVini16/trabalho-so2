@@ -4,6 +4,9 @@ CXX      = riscv64-linux-gnu-g++
 CXXFLAGS = -std=c++20 -Wall -Wextra -Iinclude -pthread -static
 LDFLAGS  = -lpthread -static
 
+# Define o target padrão ao executar `make` sem argumentos
+.DEFAULT_GOAL := run
+
 # binários
 VEHICLE   = build/vehicle
 SHM_TEST  = build/shm_test
