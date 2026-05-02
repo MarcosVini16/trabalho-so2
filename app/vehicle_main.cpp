@@ -25,7 +25,7 @@ void setup_signals() {
     struct sigaction sa{};
     sa.sa_handler = on_stop;
     sigemptyset(&sa.sa_mask);
-    sa.sa_flags = 0;
+    sa.sa_flags = SA_RESTART;
     sigaction(SIGINT, &sa, nullptr);
     sigaction(SIGTERM, &sa, nullptr);
     sigaction(SIGALRM, &sa, nullptr);
@@ -37,11 +37,21 @@ void setup_signals() {
 // ---------------------------------------------------------------------------
 
 void run_sensor(key_t key, Ethernet::Address mac) {
+    // bloqueia SIGUSR1 para evitar handler com ponteiro inválido herdado do pai
+    sigset_t mask;
+    sigemptyset(&mask);
+    sigaddset(&mask, SIGUSR1);
+    sigprocmask(SIG_BLOCK, &mask, nullptr);
+
     std::cout << "[sensor] pid=" << getpid() << "\n";
 
+    // cria os objetos do componente — ShmEngine inicializa _instance_sem correto
     NIC<ShmEngine>  nic(key, mac);
     Protocol        protocol(&nic);
     Communicator    comm(&protocol, Protocol::Address{mac, Ports::SENSOR});
+
+    // agora o handler aponta para o semáforo correto — pode desbloquear
+    sigprocmask(SIG_UNBLOCK, &mask, nullptr);
 
     while(!g_stop) {
         Message msg;
@@ -49,7 +59,7 @@ void run_sensor(key_t key, Ethernet::Address mac) {
             std::string txt(static_cast<char*>(msg.data()), msg.size());
             std::cout << "[sensor] recebeu: '" << txt << "'\n";
 
-            // ecoa de volta para o gateway via share (broadcast local)
+            // ecoa de volta para o gateway
             Message resp;
             std::string reply = "sensor-ack: " + txt;
             std::memcpy(resp.data(), reply.c_str(), reply.size());
@@ -60,11 +70,21 @@ void run_sensor(key_t key, Ethernet::Address mac) {
 }
 
 void run_actuator(key_t key, Ethernet::Address mac) {
+    // bloqueia SIGUSR1 para evitar handler com ponteiro inválido herdado do pai
+    sigset_t mask;
+    sigemptyset(&mask);
+    sigaddset(&mask, SIGUSR1);
+    sigprocmask(SIG_BLOCK, &mask, nullptr);
+
     std::cout << "[actuator] pid=" << getpid() << "\n";
 
+    // cria os objetos do componente — ShmEngine inicializa _instance_sem correto
     NIC<ShmEngine>  nic(key, mac);
     Protocol        protocol(&nic);
     Communicator    comm(&protocol, Protocol::Address{mac, Ports::ACTUATOR});
+
+    // agora o handler aponta para o semáforo correto — pode desbloquear
+    sigprocmask(SIG_UNBLOCK, &mask, nullptr);
 
     while(!g_stop) {
         Message msg;
@@ -76,11 +96,21 @@ void run_actuator(key_t key, Ethernet::Address mac) {
 }
 
 void run_powertrain(key_t key, Ethernet::Address mac) {
+    // bloqueia SIGUSR1 para evitar handler com ponteiro inválido herdado do pai
+    sigset_t mask;
+    sigemptyset(&mask);
+    sigaddset(&mask, SIGUSR1);
+    sigprocmask(SIG_BLOCK, &mask, nullptr);
+
     std::cout << "[powertrain] pid=" << getpid() << "\n";
 
+    // cria os objetos do componente — ShmEngine inicializa _instance_sem correto
     NIC<ShmEngine>  nic(key, mac);
     Protocol        protocol(&nic);
     Communicator    comm(&protocol, Protocol::Address{mac, Ports::POWERTRAIN});
+
+    // agora o handler aponta para o semáforo correto — pode desbloquear
+    sigprocmask(SIG_UNBLOCK, &mask, nullptr);
 
     while(!g_stop) {
         Message msg;
@@ -209,7 +239,7 @@ int main(int argc, char* argv[]) {
     std::cout << "ESTAMOS TESTANDO PARADA POR SINAL!!!\n";
     setup_signals();
 
-    int timeout_sec = (argc > 3) ? std::stoi(argv[3]) : 10; // timeout padrão de 10s para testes
+    int timeout_sec = (argc > 3) ? std::stoi(argv[3]) : 120; // timeout padrão de 10s para testes
     alarm(timeout_sec); // para evitar travar indefinidamente durante testes
 
     const std::string iface = (argc > 1) ? argv[1] : "eth0";

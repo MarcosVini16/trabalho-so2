@@ -18,7 +18,13 @@ class NIC : public NICBase,
 public:
     template<typename... Args>
     NIC(Args&&... args) : E(std::forward<Args>(args)...) {
-        _address = this->read_address();  // correto — método de instância
+        _address = this->read_address();
+        if constexpr (requires { this->set_handle_cb(nullptr); }) {
+            this->set_handle_cb([this](void* buf, size_t len) {
+                this->_handle(buf, len);
+            });
+            this->start();
+        }
     }
 
     int send(Buffer* buf) override {
@@ -105,5 +111,5 @@ private:
 
     Address                  _address;
     std::mutex               _pool_mutex; // protege o pool de buffers contra acesso concorrente
-    Buffer  _buffer[NICBase::BUFFER_COUNT];
+    std::vector<Buffer> _buffer{NICBase::BUFFER_COUNT};
 };
