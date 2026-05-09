@@ -4,9 +4,8 @@
 #include "../engine/shm_engine.hpp"
 #include "../protocol.hpp"
 #include "../communicator.hpp"
-#include <sys/ipc.h>
-#include <sys/shm.h>
-#include <sys/sem.h>
+#include <time.h>
+#include <cstdint>
 
 /*
  * Classe base para os componentes do veículo. 
@@ -16,7 +15,8 @@ class Component {
 public:
 
     Component(Protocol::Address address, key_t key, Ethernet::Address mac)
-        : nic(key, mac), protocol(&nic), communicator(&protocol, address) {};
+        : nic(key, mac), protocol(&nic), communicator(&protocol, address) {
+    };
 
     ~Component() = default;
 
@@ -29,6 +29,27 @@ public:
         return communicator.send(&msg);
     }
 
+    bool share(const Message& msg, Protocol::Port dst_port) {
+        return communicator.share(&msg, dst_port);
+    }
+
+    /*
+     * @brief Constrói e envia uma mensagem a partir de dados brutos.
+     * @param data Ponteiro para os dados a serem enviados.
+     * @param size Tamanho dos dados em bytes.
+     * @return true se os dados foram enviados com sucesso, false caso contrário.
+    */
+    bool send(const void* data, unsigned int size) {
+        Message msg;
+        std::memcpy(msg.data(), data, size);
+        msg.set_size(size);
+        msg.set_src(communicator.address().paddr); // Define o endereço de origem da mensagem
+        timespec current_time;
+        clock_gettime(CLOCK_REALTIME, &current_time);
+        uint64_t ts = current_time.tv_sec * 1000000000ULL + current_time.tv_nsec; // Convert to nanoseconds
+        msg.set_timestamp(ts);
+        return communicator.send(&msg);
+    }
     /*
      * @brief Recebe uma mensagem, bloqueando até que uma mensagem esteja disponível.
      * @param msg Referência para um objeto Message onde a mensagem recebida será armazenada.
@@ -50,4 +71,5 @@ protected:
     NIC<ShmEngine> nic; // NIC para comunicação com outros componentes locais.
     Protocol protocol; // Protocolo de comunicação
     Communicator communicator; // Camada de comunicação (mais alto nível) para enviar/receber mensagens
+    key_t clock_key; // chave para o segmento de memória compartilhada do relógio (pode ser útil para componentes que precisam acessar o relógio sincronizado)
 };

@@ -20,6 +20,7 @@
 class RawSocketEngine : public Engine {
     public:
         RawSocketEngine(const std::string& iface) : _iface(iface), _running(true) {
+            std::cout << "[raw] processo " << getpid() << " iniciando na interface '" << iface << "'\n";
             // 1. abre o socket
             _fd = socket(AF_PACKET, SOCK_RAW, htons(0x8888));
             if(_fd < 0)
@@ -55,6 +56,7 @@ class RawSocketEngine : public Engine {
         }
 
         ~RawSocketEngine() {
+            std::cout << "[raw] iniciando destrutor\n";
             _running = false;
             close(_fd);         // fecha o socket para interromper o recv
             if(_thread.joinable())

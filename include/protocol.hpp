@@ -75,14 +75,13 @@ class Protocol
         ~Protocol() {
             std::cout << "[protocol] destrutor iniciado\n";
             // copia a lista antes de iterar para evitar invalidar o iterador
-            auto nics_copy = _nics;
-            for(auto* nic : nics_copy) {
-                //std::cout << "[protocol] detach_nic nic=" << (void*)nic << "\n";
-                nic->detach(this, PROTO);
-                //std::cout << "[protocol] detach ok\n";
-            }
-            _nics.clear();
+            // auto nics_copy = _nics;
+            // for(auto* nic : nics_copy) {
+            //     nic->detach(this, PROTO);
+            // }
+            // _nics.clear();
             //std::cout << "[protocol] destrutor concluido\n";
+            std::cout << "[protocol] destrutor concluido\n";
         }
 
         // Multiple NICs
@@ -165,6 +164,7 @@ class Protocol
             Port dst_port = ntohs(pkt->header.dst_port);
             //std::cout << "[protocol] dst_port=" << dst_port << "\n";
             // Checa se foi shm (próprio endereço)
+            
             if(dst_port == 0) {
                 if (pkt->header.dst != Ethernet::Address::BROADCAST()) {
                     // notifica todos

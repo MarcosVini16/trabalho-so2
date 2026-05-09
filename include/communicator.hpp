@@ -5,6 +5,7 @@
 #include "utils/buffer.hpp"
 #include "ethernet.hpp"
 #include "protocol.hpp"
+#include <chrono>
 #include <iostream>
 
 class Communicator
@@ -46,7 +47,10 @@ public:
     bool receive(Message* msg) {
         // bloqueia a thread até ter algum buffer na lista
         // (o update acorda via _semaphore.v())
-        _semaphore.p();
+        // _semaphore.p();
+        if (!_semaphore.try_p_for(std::chrono::milliseconds(1000))) { // timeout para evitar bloqueio infinito (pode ser ajustado conforme necessário)
+            return false;
+        }
         //std::cout << "[communicator] acordou, lendo buffer\n";
 
         Message* internal = _data.empty() ? nullptr : _data.remove();

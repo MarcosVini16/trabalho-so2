@@ -8,8 +8,14 @@
 #include <thread>
 #include <cstring>
 #include <string>
+#include <sys/reboot.h>
+#include <linux/reboot.h>
+#include <time.h>
 #include "../include/vehicle.hpp"
 #include "../include/utils/ports.hpp"
+#include "../include/components/sensor.hpp"
+#include "../include/components/actuator.hpp"
+#include "../include/components/time_client.hpp"
 
 // ---------------------------------------------------------------------------
 // Setup do signal de parada total
@@ -54,9 +60,14 @@ void run_sensor(key_t key, Ethernet::Address mac) {
             std::string reply = "sensor-ack: " + txt;
             std::memcpy(resp.data(), reply.c_str(), reply.size());
             resp.set_size(reply.size());
+            timespec current_time;
+            clock_gettime(CLOCK_REALTIME, &current_time);
+            uint64_t ts = current_time.tv_sec * 1000000000ULL + current_time.tv_nsec; // Convert to nanoseconds
+            resp.set_timestamp(ts);
             comm.share(&resp, Ports::GATEWAY);
         }
     }
+    std::cout << "[sensor] saindo...\n";
 }
 
 void run_actuator(key_t key, Ethernet::Address mac) {
@@ -73,6 +84,7 @@ void run_actuator(key_t key, Ethernet::Address mac) {
             std::cout << "[actuator] recebeu: '" << txt << "'\n";
         }
     }
+    std::cout << "[actuator] saindo...\n";
 }
 
 void run_powertrain(key_t key, Ethernet::Address mac) {
@@ -89,6 +101,7 @@ void run_powertrain(key_t key, Ethernet::Address mac) {
             std::cout << "[powertrain] recebeu: '" << txt << "'\n";
         }
     }
+    std::cout << "[powertrain] saindo...\n";
 }
 
 // ---------------------------------------------------------------------------
@@ -113,6 +126,7 @@ void run_responder(Gateway& gw) {
             }
         }
     }
+    std::cout << "[responder] saindo...\n";
 }
 
 // Mede RTT inter-VM via raw socket
@@ -145,6 +159,7 @@ void run_rtt(Gateway& gw) {
 
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
+    std::cout << "[rtt] saindo...\n";
 }
 
 // Modo normal: gateway envia para componentes locais via share()
@@ -160,11 +175,16 @@ void run_normal(Gateway& gw) {
             std::string txt = "rede-msg-" + std::to_string(count++);
             std::memcpy(msg.data(), txt.c_str(), txt.size());
             msg.set_size(txt.size());
+            timespec current_time;
+            clock_gettime(CLOCK_REALTIME, &current_time);
+            uint64_t ts = current_time.tv_sec * 1000000000ULL + current_time.tv_nsec;
+            msg.set_timestamp(ts);
             bool ok = gw.send(msg);
             std::cout << "[gateway/net] enviou '" << txt
                       << "' ok=" << ok << "\n";
             std::this_thread::sleep_for(std::chrono::seconds(2));
         }
+        std::cout << "[gateway/net] saindo...\n";
     });
 
     // thread que envia periodicamente para componentes locais (intra-VM)
@@ -176,12 +196,17 @@ void run_normal(Gateway& gw) {
             std::string txt = "local-msg-" + std::to_string(count++);
             std::memcpy(msg.data(), txt.c_str(), txt.size());
             msg.set_size(txt.size());
+            timespec current_time;
+            clock_gettime(CLOCK_REALTIME, &current_time);
+            uint64_t ts = current_time.tv_sec * 1000000000ULL + current_time.tv_nsec;
+            msg.set_timestamp(ts);
             gw.share(msg, Ports::SENSOR);
             gw.share(msg, Ports::ACTUATOR);
             bool ok = gw.share(msg, Ports::POWERTRAIN);
             std::cout << "[gateway/shm] compartilhou '" << txt
                       << "' ok=" << ok << "\n";
         }
+        std::cout << "[gateway/shm] saindo...\n";
     });
 
     // loop principal: recebe de qualquer origem (rede ou shm)
@@ -195,10 +220,13 @@ void run_normal(Gateway& gw) {
             }
         }
     }
+    std::cout << "[gateway] shutdown iniciado, aguardando threads de envio terminarem...\n";
 
     // saída limpa
     if(net_sender.joinable()) net_sender.join();
     if(shm_sender.joinable()) shm_sender.join();
+
+    std::cout << "[gateway] saindo...\n";
 }
 
 // ---------------------------------------------------------------------------
@@ -273,9 +301,16 @@ int main(int argc, char* argv[]) {
 
     for (pid_t pid : children)
         kill(pid, SIGTERM); // garante que filhos sejam terminados
+    
+    std::cout << "SINAL DE PARADA ENVIADO PARA FILHOS, AGUARDANDO TERMINO...\n";
 
     for(pid_t pid : children)
         waitpid(pid, nullptr, 0);
+    
+    std::cout << "TODOS FILHOS TERMINARAM\n";
 
+    std::cout << "[gateway] shutdown completo, desligando VM...\n";
+    sync(); // garante que todas as mensagens sejam impressas antes de sair
+    reboot(RB_POWER_OFF); // desliga a VM (reboot com POWER_OFF)
     return 0;
 }

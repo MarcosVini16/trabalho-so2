@@ -1,4 +1,5 @@
 #include <semaphore>
+#include <chrono>
 
 #ifndef SEMAPHORE_HPP
 #define SEMAPHORE_HPP
@@ -11,6 +12,10 @@ class Semaphore {
 
         void p() {
             sem.acquire();
+        }
+
+        bool try_p_for(std::chrono::milliseconds timeout) {
+            return sem.try_acquire_for(timeout);
         }
 
         void v() {
