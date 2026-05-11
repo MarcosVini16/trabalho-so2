@@ -1,7 +1,13 @@
 #!/bin/sh
+mkdir -p /proc /sys /dev
+
 mount -t proc proc /proc
 mount -t sysfs sys /sys
 mount -t devtmpfs dev /dev
+
+# levanta a interface de rede
+ip link set eth0 up
+
 # lê role do cmdline do kernel
 ROLE=$(grep -oE 'role=[a-z]+' /proc/cmdline | cut -d= -f2)
 case "$ROLE" in

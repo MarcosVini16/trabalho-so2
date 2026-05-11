@@ -46,14 +46,17 @@ class RSU {
         }
 
         void run() {
-            // std::cout << "[RSU] Rodando na interface " << nic.address() << "\n";
+            std::cout << "[RSU] entrando no loop\n";
             while(!g_stop) {
+                std::cout << "[RSU] aguardando mensagem...\n";
                 Message msg;
                 // Receive bloqueia, então não há busy waiting - tirei o sleep()
                 if(receive(msg)) {
+                    std::cout << "[RSU] mensagem recebida size=" << msg.size() << "\n";
                     // Registra o momento de recebimento (T4 para Delay_Resp)
                     timespec receive_time;
                     clock_gettime(CLOCK_REALTIME, &receive_time);
+                    std::cout << "[RSU] receive_time=" << (receive_time.tv_sec * 1000000000ULL + receive_time.tv_nsec) << "\n";
 
                     // std::cout << "[RSU] Mensagem recebida do veículo " << msg.src() << "\n";
                     if(msg.size() == sizeof(PTPFrame)) {
@@ -61,27 +64,31 @@ class RSU {
                         PTPFrame* ptp = static_cast<PTPFrame*>(msg.data());
                         PTPFrame response_frame;
                         Message response;
+                        timespec now;
+                        response_frame.seq = ptp->seq;
                         switch (ptp->message_type) {
-                            case 0: // Sync
-                                response_frame.message_type = 1; // Resposta de Sync
+                            case 0:
+                                response_frame.message_type = 1;
+                                clock_gettime(CLOCK_REALTIME, &now);
+                                response_frame.timestamp = (static_cast<uint64_t>(now.tv_sec) * 1000000000) + now.tv_nsec;
+                                std::cout << "[RSU] T1=" << response_frame.timestamp << "\n";
                                 break;
-                            case 2: // Delay_Req
-                                response_frame.message_type = 3; // Resposta de Delay_Req
-                                response_frame.timestamp = (static_cast<uint64_t>(receive_time.tv_sec) * 1000000000) + receive_time.tv_nsec; // Timestamp T4 em nanosegundos
+                            case 2:
+                                response_frame.message_type = 3;
+                                response_frame.timestamp = (static_cast<uint64_t>(receive_time.tv_sec) * 1000000000) + receive_time.tv_nsec;
+                                std::cout << "[RSU] T4=" << response_frame.timestamp << "\n";
                                 break;
                             default:
-                                std::cout << "[RSU] Tipo de mensagem PTP desconhecido: " << (int)ptp->message_type << "\n";
-                                continue; // Ignora mensagens PTP desconhecidas
+                                std::cout << "[RSU] Tipo desconhecido: " << (int)ptp->message_type << "\n";
+                                continue;
                         }
-                        timespec now;
-                        clock_gettime(CLOCK_REALTIME, &now);
-                        response_frame.timestamp = (static_cast<uint64_t>(now.tv_sec) * 1000000000) + now.tv_nsec; // Timestamp em nanosegundos
                         std::memcpy(response.data(), &response_frame, sizeof(response_frame));
                         response.set_size(sizeof(response_frame));
-                        communicator.send(&response); 
+                        communicator.send(&response);
                     }
                 }
             }
+            std::cout << "[RSU] saiu do loop g_stop=" << g_stop << "\n";
         }
 
     private:
