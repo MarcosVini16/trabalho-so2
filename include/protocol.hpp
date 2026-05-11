@@ -103,12 +103,12 @@ class Protocol
         */
         int send(Address src, Address dst, const void* data, unsigned int size) {
             for(auto* nic : _nics) {
-                if (dst.paddr != nic->expected_dst()) {
-                    //std::cout << "[protocol] NIC não passou!";
-                    continue; // esta NIC não é adequada para o destino
+                Ethernet::Address exp = nic->expected_dst();
+                if (exp != Ethernet::Address() && dst.paddr != exp) {
+                    continue;
                 }
                 //std::cout << "[protocol] NIC passou, tentando enviar...\n";
-                auto* buf = nic->alloc(Ethernet::Address::BROADCAST(),
+                auto* buf = nic->alloc(dst.paddr,
                                     htons(PROTO), sizeof(Header) + size); // htons to convert protocol number to network byte order (correctly filter frames in the NIC)
                 if(!buf) continue;
 

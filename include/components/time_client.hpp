@@ -11,6 +11,8 @@
 #include <sys/ipc.h>
 #include <sys/shm.h>
 
+#include <random>
+
 /*
  * Componente responsável por sincronizar relógio do veículo
  * Atua como SLAVE do protocolo PTP simplificado
@@ -27,6 +29,8 @@ public:
         : Component(address, key, mac),
           rs_nic(iface),
           _seq(0)
+          // a semente do rng é o último byte do MAC
+          //_rng(static_cast<uint32_t>(mac.bytes[5]) * 12345)
     {
         // byte alto do seq = último byte do MAC
         // evita colisão entre veículos diferentes
@@ -236,14 +240,16 @@ public:
     }
 
     void run()
-    {
+    {   
+        // jitter inicial - desincroniza os veículos no boot
+        // um tempo diferente a cada ciclo, escolhido aleatóriamente
+        //std::uniform_int_distribution<int> init_dist(0, 499);
+
+        //std::this_thread::sleep_for(std::chrono::milliseconds(init_dist(_rng)));
         while (!g_stop)
         {
             syncTime();
-
-            std::this_thread::sleep_for(
-                std::chrono::milliseconds(500)
-            );
+            std::this_thread::sleep_for(std::chrono::milliseconds(500));
         }
         std::cout << "\n====== PTP STATS ======\n";
 
@@ -269,6 +275,9 @@ private:
     NIC<RawSocketEngine> rs_nic;
 
     uint32_t _seq;
+
+    // gerador de números aleatórios
+    //std::mt19937 _rng;
 
     bool _synced = false;
 };

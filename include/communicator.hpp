@@ -34,6 +34,17 @@ public:
         ) > 0;
     }
 
+    // pro RSU
+    bool send_to(const Message* msg, Ethernet::Address dst_mac) {
+        Protocol::Address dst{dst_mac, 0};
+        return _channel->send(
+            _address,
+            dst,
+            msg->data(),
+            msg->size()
+        ) > 0;
+    }
+
     bool share(const Message* msg, Protocol::Port dst_port) {
         Protocol::Address dst_addr{_address.paddr, dst_port};
         return _channel->send(
