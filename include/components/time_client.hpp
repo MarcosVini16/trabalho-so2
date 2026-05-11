@@ -1,7 +1,9 @@
 #pragma once
+
 #include "component.hpp"
 #include "../utils/ptp_frame.hpp"
 #include "../engine/raw_socket_engine.hpp"
+
 #include <time.h>
 #include <unistd.h>
 #include <cstring>
@@ -10,110 +12,240 @@
 
 /*
  * Componente responsável por sincronizar relógio do veículo
- * Solicita a sincronização de tempo ao RSU e ajusta o relógio local
- * Cumpre papel de SLAVE do PTP
+ * Atua como SLAVE do protocolo PTP simplificado
  */
 class TimeClient : public Component
 {
 public:
-    TimeClient(Protocol::Address address, key_t key, Ethernet::Address mac, const std::string& iface)
-        : Component(address, key, mac), rs_nic(iface), _seq(0) {
-            // top byte do seq = MAC byte 5 — garante que seqs de veículos diferentes nunca colidem
-            _seq = static_cast<uint32_t>(mac.bytes[5]) << 24;
-            protocol.attach_nic(&rs_nic);
-        }
+    TimeClient(
+        Protocol::Address address,
+        key_t key,
+        Ethernet::Address mac,
+        const std::string& iface
+    )
+        : Component(address, key, mac),
+          rs_nic(iface),
+          _seq(0)
+    {
+        // byte alto do seq = último byte do MAC
+        // evita colisão entre veículos diferentes
+        _seq = static_cast<uint32_t>(mac.bytes[5]) << 24;
 
-    void syncTime() {
+        protocol.attach_nic(&rs_nic);
+    }
+
+    void syncTime() 
+    {
         uint32_t seq = ++_seq;
-        timespec ts;
-        auto ns = [](timespec t){ return t.tv_sec * 1000000000ULL + t.tv_nsec; };
 
-        // ====================================================================
-        // Envia Sync_Req ao RSU
-        // ====================================================================
+        timespec ts{};
+
+        auto ns = [](const timespec& t) -> int64_t
+        {
+            return (int64_t)t.tv_sec * 1000000000LL + t.tv_nsec;
+        };
+
+        // ============================================================
+        // T1 -> envio Sync_Req
+        // ============================================================
+
         clock_gettime(CLOCK_REALTIME, &ts);
-        PTPFrame req = {0, 0, seq};
+
+        PTPFrame req{};
+        req.message_type = 0;
+        req.timestamp    = 0;
+        req.seq          = seq;
+
         Message msg;
+
         std::memcpy(msg.data(), &req, sizeof(req));
+
         msg.set_size(sizeof(req));
         msg.set_src(communicator.address().paddr);
-        send(msg);
-        std::cout << "[TimeClient] Enviou Sync_Req seq=" << seq << "\n";
 
-        // ====================================================================
-        // Espera Sync do RSU (T1), mede T2 no recebimento
-        // ====================================================================
-        Message response;
-        uint64_t t2;
-        while (true) {
-            if (!receive(response)) { std::cerr << "[TimeClient] Timeout Sync\n"; return; }
-            if (response.size() != sizeof(PTPFrame)) continue;
-            PTPFrame* r = reinterpret_cast<PTPFrame*>(response.data());
-            if (r->seq == seq && r->message_type == 1) {
+        send(msg);
+
+        std::cout
+            << "[TimeClient] Enviou Sync_Req seq="
+            << seq
+            << "\n";
+
+        // ============================================================
+        // Espera Sync_Resp
+        // T1 vem do RSU
+        // T2 é medido localmente no recebimento
+        // ============================================================
+
+        Message response{};
+
+        int64_t t1 = 0;
+        int64_t t2 = 0;
+
+        while (true)
+        {
+            if (!receive(response))
+            {
+                std::cerr
+                    << "[TimeClient] Timeout Sync\n";
+
+                return;
+            }
+
+            if (response.size() != sizeof(PTPFrame))
+                continue;
+
+            PTPFrame* r =
+                reinterpret_cast<PTPFrame*>(response.data());
+
+            if (r->seq == seq && r->message_type == 1)
+            {
                 clock_gettime(CLOCK_REALTIME, &ts);
+
                 t2 = ns(ts);
-                //std::cout << "[TimeClient] T2=" << t2 << "\n";
+                t1 = (int64_t)r->timestamp;
+
                 break;
             }
         }
-        uint64_t t1 = reinterpret_cast<PTPFrame*>(response.data())->timestamp;
 
-        // ====================================================================
-        // Envia Delay_Req ao RSU, mede T3 no envio
-        // ====================================================================
+        // ============================================================
+        // T3 -> envio Delay_Req
+        // ============================================================
+
         clock_gettime(CLOCK_REALTIME, &ts);
-        uint64_t t3 = ns(ts);
-        //std::cout << "[TimeClient] T3=" << t3 << "\n";
-        PTPFrame dreq = {2, 0, seq};
-        Message delay_req;
+
+        int64_t t3 = ns(ts);
+
+        PTPFrame dreq{};
+        dreq.message_type = 2;
+        dreq.timestamp    = 0;
+        dreq.seq          = seq;
+
+        Message delay_req{};
+
         std::memcpy(delay_req.data(), &dreq, sizeof(dreq));
+
         delay_req.set_size(sizeof(dreq));
         delay_req.set_src(communicator.address().paddr);
+
         send(delay_req);
-        std::cout << "[TimeClient] Enviou Delay_Req seq=" << seq << "\n";
 
-        // ====================================================================
-        // Espera Delay_Resp do RSU (T4)
-        // ====================================================================
-        Message delay_resp;
-        while (true) {
-            if (!receive(delay_resp)) { std::cerr << "[TimeClient] Timeout Delay_Resp\n"; return; }
-            if (delay_resp.size() != sizeof(PTPFrame)) continue;
-            PTPFrame* r = reinterpret_cast<PTPFrame*>(delay_resp.data());
-            if (r->seq == seq && r->message_type == 3) break;
+        std::cout
+            << "[TimeClient] Enviou Delay_Req seq="
+            << seq
+            << "\n";
+
+        // ============================================================
+        // Espera Delay_Resp
+        // T4 vem do RSU
+        // ============================================================
+
+        Message delay_resp{};
+
+        int64_t t4 = 0;
+
+        while (true)
+        {
+            if (!receive(delay_resp))
+            {
+                std::cerr
+                    << "[TimeClient] Timeout Delay_Resp\n";
+
+                return;
+            }
+
+            if (delay_resp.size() != sizeof(PTPFrame))
+                continue;
+
+            PTPFrame* r =
+                reinterpret_cast<PTPFrame*>(delay_resp.data());
+
+            if (r->seq == seq && r->message_type == 3)
+            {
+                t4 = (int64_t)r->timestamp;
+                break;
+            }
         }
-        uint64_t t4 = reinterpret_cast<PTPFrame*>(delay_resp.data())->timestamp;
 
-        // ====================================================================
-        // Calcula offset e ajusta relógio local
-        // ====================================================================
-        //std::cout << "[TimeClient] T1=" << t1 << " T2=" << t2 << " T3=" << t3 << " T4=" << t4 << "\n";
-        //std::cout << "[TimeClient] T2-T1=" << (int64_t)(t2-t1) << " T4-T3=" << (int64_t)(t4-t3) << "\n";
+        // ============================================================
+        // Offset PTP
+        //
+        // offset =
+        // ((T2 - T1) + (T3 - T4)) / 2
+        // ============================================================
 
-        int64_t offset = ((int64_t)(t2 - t1) - (int64_t)(t4 - t3)) / 2;
-        std::cout << "[TimeClient] offset=" << offset << "ns\n";
+        int64_t offset =
+            ((t2 - t1) + (t3 - t4)) / 2;
 
-        if (!_synced) {
-            clock_gettime(CLOCK_REALTIME, &ts);
-            int64_t new_ns = ns(ts) + offset;
-            timespec new_time = { new_ns / 1000000000LL, new_ns % 1000000000LL };
-            clock_settime(CLOCK_REALTIME, &new_time);
-            _synced = true;
-            std::cout << "[TimeClient] Sincronizado! offset=" << offset << "ns\n";
-        } else {
-            std::cout << "[TimeClient] Já sincronizado, offset atual=" << offset << "ns\n";
+        std::cout
+            << "[TimeClient] "
+            << "T1=" << t1
+            << " T2=" << t2
+            << " T3=" << t3
+            << " T4=" << t4
+            << "\n";
+
+        std::cout
+            << "[TimeClient] offset="
+            << offset
+            << "ns\n";
+
+        // ============================================================
+        // PLL simples
+        //
+        // aplica apenas fração do erro
+        // ============================================================
+
+        clock_gettime(CLOCK_REALTIME, &ts);
+
+        int64_t now_ns = ns(ts);
+
+        // IMPORTANTE:
+        // correction deve ter sinal oposto ao offset
+        int64_t correction = -offset / 8;
+
+        int64_t new_ns = now_ns + correction;
+
+        timespec new_time{};
+
+        new_time.tv_sec  = new_ns / 1000000000LL;
+        new_time.tv_nsec = new_ns % 1000000000LL;
+
+        // normalização
+        if (new_time.tv_nsec < 0)
+        {
+            new_time.tv_nsec += 1000000000LL;
+            new_time.tv_sec--;
         }
+
+        // ajusta relógio do sistema
+        if (clock_settime(CLOCK_REALTIME, &new_time) != 0)
+        {
+            perror("[TimeClient] clock_settime");
+        }
+
+        std::cout
+            << "[TimeClient] correction="
+            << correction
+            << "\n";
     }
 
-    void run() {
-        while (!g_stop) {
+    void run()
+    {
+        while (!g_stop)
+        {
             syncTime();
-            std::this_thread::sleep_for(std::chrono::milliseconds(500));
+
+            std::this_thread::sleep_for(
+                std::chrono::milliseconds(500)
+            );
         }
     }
 
 private:
-    bool _synced = false;
     NIC<RawSocketEngine> rs_nic;
+
     uint32_t _seq;
+
+    bool _synced = false;
 };
