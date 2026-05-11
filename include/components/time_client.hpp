@@ -129,7 +129,7 @@ public:
      * sincronizando o tempo periodicamente com o RSU
      */
     void run() {
-        while (true) {
+        while (!g_stop) {
             syncTime();
             std::this_thread::sleep_for(std::chrono::milliseconds(500)); // Sincroniza a cada 500ms (ajustável conforme necessário)
         }

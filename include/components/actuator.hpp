@@ -7,7 +7,7 @@ public:
 
     void run() {
         std::cout << "[Actuator] Rodando com endereço " << communicator.address() << "\n";
-        while(true) {
+        while(!g_stop) {
             Message msg;
             if(receive(msg)) {
                 std::string txt(static_cast<char*>(msg.data()), msg.size());

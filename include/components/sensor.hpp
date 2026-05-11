@@ -7,7 +7,7 @@ public:
 
     void run() {
         std::cout << "[Sensor] Rodando com endereço " << communicator.address() << "\n";
-        while(true) {
+        while(!g_stop) {
             Message msg;
             if(receive(msg)) {
                 std::string txt(static_cast<char*>(msg.data()), msg.size());
@@ -18,7 +18,7 @@ public:
                 std::string reply = "sensor-ack: " + txt;
                 std::memcpy(resp.data(), reply.c_str(), reply.size());
                 resp.set_size(reply.size());
-                share(&resp, Ports::GATEWAY);
+                share(resp, Ports::GATEWAY);
             }
         }
     }

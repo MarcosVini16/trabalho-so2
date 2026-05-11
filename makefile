@@ -9,6 +9,7 @@ LDFLAGS  = -lpthread -static
 
 # binários
 VEHICLE   = build/vehicle
+RSU       = build/rsu
 SHM_TEST  = build/shm_test
 
 # sistema de arquivos base da VM (busybox pré compilado)
@@ -18,23 +19,36 @@ KERNEL_IMAGE = env/Image
 # sistema de arquivos empacotado que a VM carrega na inicialização
 INITRAMFS = initramfs.cpio
 
+# parâmetros comuns do QEMU
+QEMU = qemu-system-riscv64 -m 128M -M virt -nographic \
+       -kernel $(KERNEL_IMAGE) -initrd $(INITRAMFS) \
+       --append "root=/dev/ram"
+
+# rede virtual compartilhada por todas as VMs (mesma VLAN/mcast)
+NETDEV = -netdev socket,id=net0,mcast=230.0.0.1:1234
+
 .PHONY: all clean initramfs run shm_test \
-        vm1 vm2 vm3 vm4 vm5 vm_responder vm_rtt
+        vm1 vm2 vm3 vm4 vm_rsu
 
 # --------------------------------------------------------------------------
 # Targets de compilação
 # --------------------------------------------------------------------------
 
-all: $(VEHICLE)
+all: $(VEHICLE) $(RSU)
 
-# binário principal do veículo (cross-compilado para RISC-V)
+# binário do veículo (cross-compilado para RISC-V)
 $(VEHICLE): app/vehicle_main.cpp
+	@mkdir -p build
+	$(CXX) $(CXXFLAGS) $^ -o $@ $(LDFLAGS)
+
+# binário da RSU (cross-compilado para RISC-V)
+$(RSU): app/rsu_main.cpp
 	@mkdir -p build
 	$(CXX) $(CXXFLAGS) $^ -o $@ $(LDFLAGS)
 
 # teste de shm — compilado para a arquitetura nativa do host (sem cross)
 # útil para validar ShmEngine sem precisar subir QEMU
-$(SHM_TEST): app/shm_test.cpp 
+$(SHM_TEST): app/shm_test.cpp
 	@mkdir -p build
 	g++ -std=c++20 -Wall -Wextra -Iinclude -pthread $^ -o $@ -lpthread
 
@@ -43,82 +57,76 @@ shm_test: $(SHM_TEST)
 	sudo ./$(SHM_TEST)
 
 # --------------------------------------------------------------------------
-# Targets de VM
+# Initramfs — empacota AMBOS os binários (vehicle e rsu)
+# Cada VM decide qual rodar via /init ou via append na linha de boot.
 # --------------------------------------------------------------------------
 
-# Copia o binário para dentro do BusyBox e reempacota o initramfs
 initramfs: all
 	cp $(VEHICLE) $(BUSYBOX_INSTALL)/
+	cp $(RSU)     $(BUSYBOX_INSTALL)/
 	cd $(BUSYBOX_INSTALL) && find . | cpio -o -H newc > ../../$(INITRAMFS)
 
-# Sobe 5 VMs em modo normal (background), cada uma com MAC único
+# --------------------------------------------------------------------------
+# Targets de VM
+# --------------------------------------------------------------------------
+# Topologia padrão: 1 RSU + 4 veículos = 5 VMs.
+# A RSU sobe primeiro em background, depois os veículos.
+# O último veículo fica em foreground para você ver os logs.
+# MACs: RSU = 00:...:FF, veículos = 00:...:01..04
+
 run: initramfs
-	@for i in 1 2 3 4; do \
-		qemu-system-riscv64 -m 128M -M virt -nographic \
-			-kernel $(KERNEL_IMAGE) -initrd $(INITRAMFS) \
-			--append "root=/dev/ram" \
-			-netdev socket,id=net0,mcast=230.0.0.1:1234 \
+	@echo ">>> subindo RSU em background..."
+	@$(QEMU) $(NETDEV) \
+		-device virtio-net-device,netdev=net0,mac=00:00:00:00:00:FF \
+		--append "root=/dev/ram role=rsu" \
+		> rsu.log 2>&1 &
+	@sleep 1
+	@echo ">>> subindo veículos 1..3 em background..."
+	@for i in 1 2 3; do \
+		$(QEMU) $(NETDEV) \
 			-device virtio-net-device,netdev=net0,mac=00:00:00:00:00:0$$i \
-			> /dev/null 2>&1 & \
+			--append "root=/dev/ram role=vehicle" \
+			> vehicle$$i.log 2>&1 & \
 	done
-	qemu-system-riscv64 -m 128M -M virt -nographic \
-		-kernel $(KERNEL_IMAGE) -initrd $(INITRAMFS) \
-		--append "root=/dev/ram" \
-		-netdev socket,id=net0,mcast=230.0.0.1:1234 \
-		-device virtio-net-device,netdev=net0,mac=00:00:00:00:00:05
+	@sleep 1
+	@echo ">>> subindo veículo 4 em foreground (Ctrl-A x para sair)"
+	$(QEMU) $(NETDEV) \
+		-device virtio-net-device,netdev=net0,mac=00:00:00:00:00:04 \
+		--append "root=/dev/ram role=vehicle"
 
 # VMs individuais — cada uma em terminal separado
+# Use estes para debug isolado de PTP, abrindo um terminal por VM.
+
+vm_rsu: initramfs
+	$(QEMU) $(NETDEV) \
+		-device virtio-net-device,netdev=net0,mac=00:00:00:00:00:FF \
+		--append "root=/dev/ram role=rsu"
+
 vm1: initramfs
-	qemu-system-riscv64 -m 128M -M virt -nographic \
-		-kernel $(KERNEL_IMAGE) -initrd $(INITRAMFS) \
-		--append "root=/dev/ram" \
-		-netdev socket,id=net0,mcast=230.0.0.1:1234 \
-		-device virtio-net-device,netdev=net0,mac=00:00:00:00:00:01
+	$(QEMU) $(NETDEV) \
+		-device virtio-net-device,netdev=net0,mac=00:00:00:00:00:01 \
+		--append "root=/dev/ram role=vehicle"
 
 vm2: initramfs
-	qemu-system-riscv64 -m 128M -M virt -nographic \
-		-kernel $(KERNEL_IMAGE) -initrd $(INITRAMFS) \
-		--append "root=/dev/ram" \
-		-netdev socket,id=net0,mcast=230.0.0.1:1234 \
-		-device virtio-net-device,netdev=net0,mac=00:00:00:00:00:02
+	$(QEMU) $(NETDEV) \
+		-device virtio-net-device,netdev=net0,mac=00:00:00:00:00:02 \
+		--append "root=/dev/ram role=vehicle"
 
 vm3: initramfs
-	qemu-system-riscv64 -m 128M -M virt -nographic \
-		-kernel $(KERNEL_IMAGE) -initrd $(INITRAMFS) \
-		--append "root=/dev/ram" \
-		-netdev socket,id=net0,mcast=230.0.0.1:1234 \
-		-device virtio-net-device,netdev=net0,mac=00:00:00:00:00:03
+	$(QEMU) $(NETDEV) \
+		-device virtio-net-device,netdev=net0,mac=00:00:00:00:00:03 \
+		--append "root=/dev/ram role=vehicle"
 
 vm4: initramfs
-	qemu-system-riscv64 -m 128M -M virt -nographic \
-		-kernel $(KERNEL_IMAGE) -initrd $(INITRAMFS) \
-		--append "root=/dev/ram" \
-		-netdev socket,id=net0,mcast=230.0.0.1:1234 \
-		-device virtio-net-device,netdev=net0,mac=00:00:00:00:00:04
-
-vm5: initramfs
-	qemu-system-riscv64 -m 128M -M virt -nographic \
-		-kernel $(KERNEL_IMAGE) -initrd $(INITRAMFS) \
-		--append "root=/dev/ram" \
-		-netdev socket,id=net0,mcast=230.0.0.1:1234 \
-		-device virtio-net-device,netdev=net0,mac=00:00:00:00:00:05
-
-# VM respondedora para teste de RTT — responde "pong" a cada "ping"
-vm_responder: initramfs
-	qemu-system-riscv64 -m 128M -M virt -nographic \
-		-kernel $(KERNEL_IMAGE) -initrd $(INITRAMFS) \
-		--append "root=/dev/ram mode=responder" \
-		-netdev socket,id=net0,mcast=230.0.0.1:1234 \
-		-device virtio-net-device,netdev=net0,mac=00:00:00:00:00:01
-
-# VM medidora de RTT — envia ping e mede round-trip time
-vm_rtt: initramfs
-	qemu-system-riscv64 -m 128M -M virt -nographic \
-		-kernel $(KERNEL_IMAGE) -initrd $(INITRAMFS) \
-		--append "root=/dev/ram mode=rtt" \
-		-netdev socket,id=net0,mcast=230.0.0.1:1234 \
-		-device virtio-net-device,netdev=net0,mac=00:00:00:00:00:02
+	$(QEMU) $(NETDEV) \
+		-device virtio-net-device,netdev=net0,mac=00:00:00:00:00:04 \
+		--append "root=/dev/ram role=vehicle"
 
 # --------------------------------------------------------------------------
 clean:
-	rm -rf build $(INITRAMFS)
+	rm -rf build $(INITRAMFS) rsu.log vehicle*.log
+
+fix_multipass:
+	@echo ">>> corrigindo permissões do Multipass (requer sudo)"
+	@chmod -R 755 ~/trabalho-so2
+	@sudo chown -R ubuntu:ubuntu ~/trabalho-so2

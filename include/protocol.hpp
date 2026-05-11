@@ -4,6 +4,8 @@
 #include "nic/nic_base.hpp"
 #include "utils/buffer.hpp"
 #include "utils/traits.hpp"
+#include "utils/ports.hpp"
+#include "utils/ptp_frame.hpp"
 #include "observe/conditional.hpp"
 #include <arpa/inet.h> // for htons and ntohs
 #include <list>
@@ -168,13 +170,22 @@ class Protocol
             if(dst_port == 0) {
                 if (pkt->header.dst != Ethernet::Address::BROADCAST()) {
                     // notifica todos
-                    Observed::notify(1000, buf);
-                    Observed::notify(1001, buf);
-                    Observed::notify(1002, buf);
-                    Observed::notify(1003, buf);
+                    Observed::notify(Ports::GATEWAY, buf);
+                    Observed::notify(Ports::ACTUATOR, buf);
+                    Observed::notify(Ports::SENSOR, buf);
+                    Observed::notify(Ports::TIME_CLIENT, buf);
                 }
                 else {
-                    Observed::notify(1000, buf);
+                    if (ntohs(pkt->header.payload_size) == sizeof(PTPFrame)) {
+                        PTPFrame* ptp = pkt->data_as<PTPFrame>();
+                        if (ptp->message_type == 1 || ptp->message_type == 3) { // SYNC ou DELAY_RESP
+                            Observed::notify(Ports::TIME_CLIENT, buf);
+                            return;
+                        } else { // SYNC_REQ ou DELAY_REQ
+                            Observed::notify(Ports::RSU, buf);
+                        }
+                    }
+                    Observed::notify(Ports::GATEWAY, buf);
                 }
         
             } else {

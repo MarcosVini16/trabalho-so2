@@ -7,6 +7,8 @@
 #include <time.h>
 #include <cstdint>
 
+extern volatile sig_atomic_t g_stop; // variável global para sinalizar parada total, definida em vehicle_main.cpp
+
 /*
  * Classe base para os componentes do veículo. 
  * Pode se comunicar com outros componentes locais via memória compartilhada.

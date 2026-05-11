@@ -25,9 +25,6 @@ class Message {
         std::memcpy(_data, data, size);
         _src = src;
     }
-    
-    Ethernet::Address src() const { return _src; }
-    void set_src(Ethernet::Address addr) { _src = addr; }
 
     // retorna o ponteiro pro array
     // só leitura

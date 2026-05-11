@@ -9,7 +9,7 @@
 class Vehicle {
 public:
     Vehicle(const std::string& iface)
-        : _gateway(iface), time_client({_gateway.address().paddr, Ports::TIME_CLIENT}, _gateway.key(), _gateway.address())
+        : _gateway(iface) 
     {
         // a chave é derivada do MAC da interface — único por VM
         _key = _gateway.key();
@@ -48,7 +48,6 @@ private:
     }
 
     Gateway _gateway;
-    TimeClient time_client;
     key_t   _key;
     key_t clock_key; // chave para o segmento de memória compartilhada do relógio
     std::vector<std::unique_ptr<Component>> _components;

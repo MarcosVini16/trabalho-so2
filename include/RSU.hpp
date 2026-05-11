@@ -8,6 +8,9 @@
 #include <unistd.h> // Para sleep()
 #include <cstdint> // Para tipos uint
 
+
+extern volatile sig_atomic_t g_stop; // variável global para sinalizar parada total, definida em vehicle_main.cpp
+
 /*
  * Classe que representa um RSU (Road Side Unit)
  * Responsável pela sincronização temporal de todos os veículos
@@ -43,8 +46,8 @@ class RSU {
         }
 
         void run() {
-            std::cout << "[RSU] Rodando na interface " << nic.address() << "\n";
-            while(true) {
+            // std::cout << "[RSU] Rodando na interface " << nic.address() << "\n";
+            while(!g_stop) {
                 Message msg;
                 // Receive bloqueia, então não há busy waiting - tirei o sleep()
                 if(receive(msg)) {
@@ -52,9 +55,9 @@ class RSU {
                     timespec receive_time;
                     clock_gettime(CLOCK_REALTIME, &receive_time);
 
-                    std::cout << "[RSU] Mensagem recebida do veículo " << msg.src() << "\n";
+                    // std::cout << "[RSU] Mensagem recebida do veículo " << msg.src() << "\n";
                     if(msg.size() == sizeof(PTPFrame)) {
-                        std::cout << "[RSU] Enviando resposta de sincronização para " << msg.src() << "\n";
+                        // std::cout << "[RSU] Enviando resposta de sincronização para " << msg.src() << "\n";
                         PTPFrame* ptp = static_cast<PTPFrame*>(msg.data());
                         PTPFrame response_frame;
                         Message response;
@@ -85,4 +88,4 @@ class RSU {
         NIC<RawSocketEngine> nic; // NIC para comunicação com a rede externa
         Protocol protocol; // Protocolo de comunicação
         Communicator communicator; // Camada de comunicação para enviar/receber mensagem
-}
+};

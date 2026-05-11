@@ -1,6 +1,7 @@
 // engine.hpp
 #pragma once
 #include <cstddef>
+#include "../ethernet.hpp"
 
 /*
  * Classe base para uma Engine de comunicação entre processos. 
