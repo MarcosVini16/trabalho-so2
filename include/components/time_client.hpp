@@ -49,6 +49,7 @@ public:
         clock_gettime(CLOCK_REALTIME, &current_time); // T2 = momento de recebimento do SYNC do RSU
         // Converte current_time para nanosegundos para facilitar o cálculo do offset
         uint64_t t2 = current_time.tv_sec * 1000000000ULL + current_time.tv_nsec;
+        std::cout << "[TimeClient] Recebeu SYNC do RSU;\n";
 
         if(!received) {
             std::cerr << "[TimeClient] Erro ao receber resposta do RSU\n";
@@ -77,7 +78,7 @@ public:
         uint64_t t3 = current_time.tv_sec * 1000000000ULL + current_time.tv_nsec; // Timestamp T3 local
         delay_req.set_timestamp(t3);
         send(delay_req);
-        std::cout << "[TimeClient] Enviou requisição de delay com timestamp " << t3 << "\n";
+        std::cout << "[TimeClient] Enviou requisição de delay";
 
         // ====================================================================
         // Espera pelo DELAY_RESP do RSU (T4)
@@ -85,6 +86,7 @@ public:
 
         Message delay_resp;
         received = receive(delay_resp);
+        std::cout << "[TimeClient] Recebeu resposta de delay do RSU;\n";
         
         if (!received) {
             std::cerr << "[TimeClient] Erro ao receber resposta de delay do RSU\n";

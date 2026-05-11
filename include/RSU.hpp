@@ -46,11 +46,12 @@ class RSU {
         }
 
         void run() {
-            // std::cout << "[RSU] Rodando na interface " << nic.address() << "\n";
+            std::cout << "[RSU] Rodando...\n";
             while(!g_stop) {
                 Message msg;
                 // Receive bloqueia, então não há busy waiting - tirei o sleep()
                 if(receive(msg)) {
+                    std::cout << "[RSU] Mensagem recebida!\n";
                     // Registra o momento de recebimento (T4 para Delay_Resp)
                     timespec receive_time;
                     clock_gettime(CLOCK_REALTIME, &receive_time);
@@ -62,10 +63,12 @@ class RSU {
                         PTPFrame response_frame;
                         Message response;
                         switch (ptp->message_type) {
-                            case 0: // Sync
+                            case 0: // Sync_Req
+                                std::cout << "[RSU] Vou responder SYNC_REQ!\n";
                                 response_frame.message_type = 1; // Resposta de Sync
                                 break;
                             case 2: // Delay_Req
+                                std::cout << "[RSU] Vou responder DELAY_REQ!\n";
                                 response_frame.message_type = 3; // Resposta de Delay_Req
                                 response_frame.timestamp = (static_cast<uint64_t>(receive_time.tv_sec) * 1000000000) + receive_time.tv_nsec; // Timestamp T4 em nanosegundos
                                 break;
