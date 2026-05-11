@@ -1,21 +1,12 @@
 leo:
--
+- melhorar os testes
+- compreender como é garantido que nao da pra ler e escrever na memoria ao mesmo tempo, explicar o mutex e como funciona
 
 marcos:
--
+- 
 
 rita:
--
+- atualizar os diagramas
 
 ?:
-- comunicação em tempo real não existe em shared memory
-grupo do rafael corrigiu isso com:
-tudo que mexe no buffer é seção crítica
--> mutex especial
-
-Guto: ¨Modelaram um mecanismo de sincronização que envolve sinais, mas o tratador não é signal-safe¨
-¨não explicaram como a sincronização dos vários leitores é feita (e, pelo código, me pareceu que não o é)¨
-
-make deve rodar diferentes testes que rodam por um determinado tempo e mostram determinadas estatisticas
-
-- fazer relatório e enviar pelo moodle
+-

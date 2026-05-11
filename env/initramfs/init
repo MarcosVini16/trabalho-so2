@@ -1,26 +1,16 @@
 #!/bin/sh
-#mkdir /sys /proc
-#mount -t sysfs none /sys
-#mount -t devtmpfs none /dev
-#mount -t proc proc /proc
-#ip link set eth0 up
-#mount -t proc proc /proc
-#setsid cttyhack sh
+mkdir -p /proc /sys /dev
 
-#!/bin/sh
-mkdir /sys /proc
-mount -t sysfs none /sys
-mount -t devtmpfs none /dev
 mount -t proc proc /proc
+mount -t sysfs sys /sys
+mount -t devtmpfs dev /dev
+
+# levanta a interface de rede
 ip link set eth0 up
 
-# lê os argumentos passados pelo kernel
-CMDLINE=$(cat /proc/cmdline)
-MODE=$(echo $CMDLINE | grep -o 'mode=[^ ]*' | cut -d= -f2)
-
-# se não tiver modo definido, usa normal
-if [ -z "$MODE" ]; then
-    MODE="normal"
-fi
-
-./vehicle eth0 $MODE
+# lê role do cmdline do kernel
+ROLE=$(grep -oE 'role=[a-z]+' /proc/cmdline | cut -d= -f2)
+case "$ROLE" in
+    rsu)     exec /rsu eth0 60 ;;
+    *)       exec /vehicle eth0 30 ;;
+esac

@@ -3,11 +3,13 @@
 #include "engine/engine.hpp"
 #include "components/gateway.hpp"
 #include "components/component.hpp"
+#include "components/time_client.hpp"
+#include "utils/ports.hpp"
 #include <vector>
 class Vehicle {
 public:
     Vehicle(const std::string& iface)
-        : _gateway(iface)
+        : _gateway(iface) 
     {
         // a chave é derivada do MAC da interface — único por VM
         _key = _gateway.key();
@@ -47,5 +49,6 @@ private:
 
     Gateway _gateway;
     key_t   _key;
+    key_t clock_key; // chave para o segmento de memória compartilhada do relógio
     std::vector<std::unique_ptr<Component>> _components;
 };

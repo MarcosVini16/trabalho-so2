@@ -4,6 +4,8 @@
 #include "nic/nic_base.hpp"
 #include "utils/buffer.hpp"
 #include "utils/traits.hpp"
+#include "utils/ports.hpp"
+#include "utils/ptp_frame.hpp"
 #include "observe/conditional.hpp"
 #include <arpa/inet.h> // for htons and ntohs
 #include <list>
@@ -47,8 +49,6 @@ class Protocol
 
         // header que vai na frente do payload em cada frame
         struct Header {
-            Ethernet::Address src;
-            Ethernet::Address dst;
             uint16_t src_port;
             uint16_t dst_port;
             uint16_t payload_size; //
@@ -75,14 +75,13 @@ class Protocol
         ~Protocol() {
             std::cout << "[protocol] destrutor iniciado\n";
             // copia a lista antes de iterar para evitar invalidar o iterador
-            auto nics_copy = _nics;
-            for(auto* nic : nics_copy) {
-                //std::cout << "[protocol] detach_nic nic=" << (void*)nic << "\n";
-                nic->detach(this, PROTO);
-                //std::cout << "[protocol] detach ok\n";
-            }
-            _nics.clear();
+            // auto nics_copy = _nics;
+            // for(auto* nic : nics_copy) {
+            //     nic->detach(this, PROTO);
+            // }
+            // _nics.clear();
             //std::cout << "[protocol] destrutor concluido\n";
+            std::cout << "[protocol] destrutor concluido\n";
         }
 
         // Multiple NICs
@@ -116,9 +115,7 @@ class Protocol
                 auto* pkt = buf->data<Packet>();
 
                 // monta — separa o Address em seus campos primitivos
-                pkt->header.src  = src.paddr;   // extrai o MAC
                 pkt->header.src_port = htons(src.port);    // extrai a porta
-                pkt->header.dst  = dst.paddr;
                 pkt->header.dst_port = htons(dst.port);
                 pkt->header.payload_size = htons(static_cast<uint16_t>(size));
 
@@ -135,7 +132,8 @@ class Protocol
             //std::cout << "[protocol] receive chamado buf->size()=" << buf->size() << "\n";
             auto* pkt = buf->data<Packet>();
             if(src) {
-                src->paddr = pkt->header.src;
+                // MAC vem do frame Ethernet
+                src->paddr = buf->frame()->src;
                 src->port = ntohs(pkt->header.src_port);
             }
             uint16_t real_size = ntohs(pkt->header.payload_size);
@@ -161,22 +159,23 @@ class Protocol
         void update(Ethernet::Protocol, Buffer* buf) override {
             //std::cout << "[protocol] update chamado\n";
             auto* pkt = buf->data<Packet>();
-            Ethernet::Address src_mac = pkt->header.src;
             Port dst_port = ntohs(pkt->header.dst_port);
             //std::cout << "[protocol] dst_port=" << dst_port << "\n";
             // Checa se foi shm (próprio endereço)
+            
             if(dst_port == 0) {
-                if (pkt->header.dst != Ethernet::Address::BROADCAST()) {
-                    // notifica todos
-                    Observed::notify(1000, buf);
-                    Observed::notify(1001, buf);
-                    Observed::notify(1002, buf);
-                    Observed::notify(1003, buf);
+                // broadcast — verifica se é PTP
+                if (ntohs(pkt->header.payload_size) == sizeof(PTPFrame)) {
+                    PTPFrame* ptp = pkt->data_as<PTPFrame>();
+                    if (ptp->message_type == 1 || ptp->message_type == 3) {
+                        Observed::notify(Ports::TIME_CLIENT, buf);
+                        free(buf);
+                        return;
+                    } else {
+                        Observed::notify(Ports::RSU, buf);
+                    }
                 }
-                else {
-                    Observed::notify(1000, buf);
-                }
-        
+                Observed::notify(Ports::GATEWAY, buf);
             } else {
                 Observed::notify(dst_port, buf);
             }
