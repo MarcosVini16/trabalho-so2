@@ -15,6 +15,7 @@
 #include "../include/components/actuator.hpp"
 #include "../include/components/time_client.hpp"
 #include "../include/utils/ports.hpp"
+#include "../include/utils/stats.hpp"
 
 // ---------------------------------------------------------------------------
 // Sinal de parada total (visível para todos os filhos pós-fork)
@@ -36,30 +37,32 @@ void setup_signals() {
     sigaction(SIGALRM, &sa, nullptr);
 }
 
+Stats g_stats;
+
 // ---------------------------------------------------------------------------
 // Funções de cada processo filho.
 // Cada uma constrói seus objetos APÓS o fork — nunca antes.
 // ---------------------------------------------------------------------------
 
 void run_sensor(key_t key, Ethernet::Address mac, const std::string& iface) {
-    std::cout << "[sensor] pid=" << getpid() << "\n";
+    //std::cout << "[sensor] pid=" << getpid() << "\n";
     Sensor s(Protocol::Address{mac, Ports::SENSOR}, key, mac);
     s.run();
-    std::cout << "[sensor] saindo...\n";
+    //std::cout << "[sensor] saindo...\n";
 }
 
 void run_actuator(key_t key, Ethernet::Address mac, const std::string& iface) {
-    std::cout << "[actuator] pid=" << getpid() << "\n";
+    //std::cout << "[actuator] pid=" << getpid() << "\n";
     Actuator a(Protocol::Address{mac, Ports::ACTUATOR}, key, mac);
     a.run();
-    std::cout << "[actuator] saindo...\n";
+    //std::cout << "[actuator] saindo...\n";
 }
 
 void run_time_client(key_t key, Ethernet::Address mac, const std::string& iface) {
-    std::cout << "[time_client] pid=" << getpid() << "\n";
+    //std::cout << "[time_client] pid=" << getpid() << "\n";
     TimeClient tc(Protocol::Address{mac, Ports::TIME_CLIENT}, key,  mac, iface);
     tc.run();
-    std::cout << "[time_client] saindo...\n";
+    //std::cout << "[time_client] saindo...\n";
 }
 
 // ---------------------------------------------------------------------------
@@ -77,11 +80,11 @@ void run_normal(Gateway& gw) {
             std::memcpy(msg.data(), txt.c_str(), txt.size());
             msg.set_size(txt.size());
             bool ok = gw.send(msg);
-            std::cout << "[gateway/net] enviou '" << txt
-                      << "' ok=" << ok << "\n";
+            //std::cout << "[gateway/net] enviou '" << txt
+                      //<< "' ok=" << ok << "\n";
             std::this_thread::sleep_for(std::chrono::seconds(2));
         }
-        std::cout << "[gateway/net] saindo...\n";
+        //std::cout << "[gateway/net] saindo...\n";
     });
 
     std::thread shm_sender = std::thread([&gw]() {
@@ -95,10 +98,10 @@ void run_normal(Gateway& gw) {
             gw.share(msg, Ports::SENSOR);
             gw.share(msg, Ports::ACTUATOR);
             bool ok = gw.share(msg, Ports::POWERTRAIN);
-            std::cout << "[gateway/shm] compartilhou '" << txt
-                      << "' ok=" << ok << "\n";
+            //std::cout << "[gateway/shm] compartilhou '" << txt
+                      //<< "' ok=" << ok << "\n";
         }
-        std::cout << "[gateway/shm] saindo...\n";
+        //std::cout << "[gateway/shm] saindo...\n";
     });
 
     while(!g_stop) {
@@ -107,15 +110,15 @@ void run_normal(Gateway& gw) {
             size_t sz = msg.size();
             if(sz > 0 && sz <= Message::MAX_SIZE) {
                 std::string txt(static_cast<char*>(msg.data()), sz);
-                std::cout << "[gateway] recebeu: '" << txt << "'\n";
+                //std::cout << "[gateway] recebeu: '" << txt << "'\n";
             }
         }
     }
 
-    std::cout << "[gateway] shutdown iniciado, aguardando threads...\n";
+    //std::cout << "[gateway] shutdown iniciado, aguardando threads...\n";
     if(net_sender.joinable()) net_sender.join();
     if(shm_sender.joinable()) shm_sender.join();
-    std::cout << "[gateway] saindo...\n";
+    //std::cout << "[gateway] saindo...\n";
 }
 
 // ---------------------------------------------------------------------------

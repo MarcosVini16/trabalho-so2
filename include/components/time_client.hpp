@@ -3,6 +3,7 @@
 #include "component.hpp"
 #include "../utils/ptp_frame.hpp"
 #include "../engine/raw_socket_engine.hpp"
+#include "../utils/stats.hpp"
 
 #include <time.h>
 #include <unistd.h>
@@ -88,6 +89,7 @@ public:
                 std::cerr
                     << "[TimeClient] Timeout Sync\n";
 
+                g_stats.ptp_sync_timeout++;
                 return;
             }
 
@@ -151,6 +153,7 @@ public:
                 std::cerr
                     << "[TimeClient] Timeout Delay_Resp\n";
 
+                g_stats.ptp_sync_timeout++;
                 return;
             }
 
@@ -189,6 +192,8 @@ public:
             << "[TimeClient] offset="
             << offset
             << "ns\n";
+        g_stats.last_offset_ns = offset;
+        g_stats.ptp_sync_ok++;
 
         // ============================================================
         // PLL simples
@@ -240,6 +245,24 @@ public:
                 std::chrono::milliseconds(500)
             );
         }
+        std::cout << "\n====== PTP STATS ======\n";
+
+        std::cout
+            << "PTP sync OK: "
+            << g_stats.ptp_sync_ok
+            << "\n";
+
+        std::cout
+            << "PTP timeouts: "
+            << g_stats.ptp_sync_timeout
+            << "\n";
+
+        std::cout
+            << "Ultimo offset: "
+            << g_stats.last_offset_ns
+            << " ns\n";
+
+        std::cout << "=======================\n";
     }
 
 private:

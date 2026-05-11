@@ -94,7 +94,7 @@ public:
 protected:
     // chamado por NIC::send(buf) → E::_send(frame, size)
     int _send(const void* buf, size_t len) override {
-        std::cout << "[shm] _send chamado len=" << len << "\n";
+        //std::cout << "[shm] _send chamado len=" << len << "\n";
         if (len > sizeof(Frame)) {
             std::cerr << "[shm] frame maior que MTU\n";
             return -1;
