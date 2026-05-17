@@ -1,12 +1,13 @@
 leo:
-- melhorar os testes
-- compreender como é garantido que nao da pra ler e escrever na memoria ao mesmo tempo, explicar o mutex e como funciona
+-
 
 marcos:
 - 
 
 rita:
-- atualizar os diagramas
+-
 
 ?:
--
+- atualizar os diagramas
+- passar os testes do PTP da main pra algum arquivo de testes separado 
+- refazer os testes RTT (intra e entre VMs)

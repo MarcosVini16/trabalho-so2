@@ -8,6 +8,11 @@
 #include <unistd.h> // Para sleep()
 #include <cstdint> // Para tipos uint
 
+#ifdef DEBUG_PTP
+    #define PTP_LOG(x) std::cout << x
+#else
+    #define PTP_LOG(x)
+#endif
 
 extern volatile sig_atomic_t g_stop; // variável global para sinalizar parada total, definida em vehicle_main.cpp
 
@@ -56,8 +61,7 @@ class RSU {
                     // Registra o momento de recebimento (T4 para Delay_Resp)
                     timespec receive_time;
                     clock_gettime(CLOCK_REALTIME, &receive_time);
-                    std::cout << "[RSU] receive_time=" << (receive_time.tv_sec * 1000000000ULL + receive_time.tv_nsec) << "\n";
-
+                    PTP_LOG("[RSU] receive_time=" << (receive_time.tv_sec * 1000000000ULL + receive_time.tv_nsec) << "\n");
                     // std::cout << "[RSU] Mensagem recebida do veículo " << msg.src() << "\n";
                     if(msg.size() == sizeof(PTPFrame)) {
                         // std::cout << "[RSU] Enviando resposta de sincronização para " << msg.src() << "\n";
@@ -71,12 +75,12 @@ class RSU {
                                 response_frame.message_type = 1;
                                 clock_gettime(CLOCK_REALTIME, &now);
                                 response_frame.timestamp = (static_cast<uint64_t>(now.tv_sec) * 1000000000) + now.tv_nsec;
-                                std::cout << "[RSU] T1=" << response_frame.timestamp << "\n";
+                                PTP_LOG("[RSU] T1=" << response_frame.timestamp << "\n");
                                 break;
                             case 2:
                                 response_frame.message_type = 3;
                                 response_frame.timestamp = (static_cast<uint64_t>(receive_time.tv_sec) * 1000000000) + receive_time.tv_nsec;
-                                std::cout << "[RSU] T4=" << response_frame.timestamp << "\n";
+                                PTP_LOG("[RSU] T4=" << response_frame.timestamp << "\n");
                                 break;
                             default:
                                 std::cout << "[RSU] Tipo desconhecido: " << (int)ptp->message_type << "\n";

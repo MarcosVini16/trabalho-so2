@@ -95,7 +95,6 @@ run: initramfs
 		--append "root=/dev/ram role=vehicle"
 
 # VMs individuais — cada uma em terminal separado
-# Use estes para debug isolado de PTP, abrindo um terminal por VM.
 
 vm_rsu: initramfs
 	$(QEMU) $(NETDEV) \
@@ -121,6 +120,13 @@ vm4: initramfs
 	$(QEMU) $(NETDEV) \
 		-device virtio-net-device,netdev=net0,mac=00:00:00:00:00:04 \
 		--append "root=/dev/ram role=vehicle"
+
+# --------------------------------------------------------------------------
+# Target PTP — compila com prints de debug do PTP
+# --------------------------------------------------------------------------
+
+ptp: 
+	$(MAKE) CXXFLAGS="$(CXXFLAGS) -DDEBUG_PTP" run
 
 # --------------------------------------------------------------------------
 clean:

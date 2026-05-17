@@ -9,6 +9,8 @@
 #include <unistd.h>
 #include <cstring>
 #include <iostream>
+#include <thread>
+#include <semaphore.h>
 
 class ShmEngine : public Engine {
     using Frame = Ethernet::Frame;
@@ -45,11 +47,13 @@ public:
         _sem_op(MUTEX, -1);
         _idx = _ch->enroll(getpid());
         _sem_op(MUTEX, +1);
-
+        
         if (_idx < 0) {
             std::cerr << "[shm] sem slots de leitor disponíveis\n";
             exit(1);
-        }
+        }  
+
+        sem_init(&_notify_sem, 0, 0);
 
         // instala handler de SIGUSR1 — será chamado quando
         // um produtor escrever um frame
@@ -63,6 +67,14 @@ public:
         // guarda ponteiro para a instância atual para o handler
         // (limitação: um ShmEngine por processo)
         _instance = this;
+
+        _reader_thread = std::thread([this]() {
+            while (_running) {
+                sem_wait(&_notify_sem);
+                if (_running)
+                    _try_read();
+            }
+        });
     }
 
     ~ShmEngine() {
@@ -72,6 +84,12 @@ public:
         int i = _ch->find(getpid());
         if (i >= 0) _ch->pids[i] = 0;
         
+        _running = false;
+        sem_post(&_notify_sem); // acorda a thread para ela sair
+        if (_reader_thread.joinable())
+            _reader_thread.join();
+        sem_destroy(&_notify_sem);
+
         shmdt(_ch);
 
         std::cout << "[shm] processo " << getpid() << " saiu\n";
@@ -94,27 +112,60 @@ public:
 protected:
     // chamado por NIC::send(buf) → E::_send(frame, size)
     int _send(const void* buf, size_t len) override {
-        //std::cout << "[shm] _send chamado len=" << len << "\n";
+        
+        // verifica o tamanho do frame
         if (len > sizeof(Frame)) {
             std::cerr << "[shm] frame maior que MTU\n";
             return -1;
         }
 
-        _sem_op(MUTEX, -1); // entra na seção crítica
+        // entra na seção crítica (só um processo por vez pode escrever na fila)
+        _sem_op(MUTEX, -1);
 
+        // verifica se todos os leitores já leram o slot que será sobrescrito
+
+        // para cada leitor registrado (exceto o próprio processo):
+        for (int i = 0; i < ShmChannel::PROCS; i++) {
+            if (_ch->pids[i] != 0 && _ch->pids[i] != getpid()) {
+                uint32_t head;
+
+                // fica repetindo até a fila ter espaço
+                while (true) {
+                    // lê heads[i] da memória (sem cache do compilador)
+                    __atomic_load(&_ch->heads[i], &head, __ATOMIC_ACQUIRE);
+                    // se tail (escritor) - head (leitor) > 8, tem espaço pra escrever
+                    if (_ch->tail - head < ShmChannel::N) break;
+                    // libera o mutex
+                    _sem_op(MUTEX, +1);
+                    // como não tem o que ele fazer, faz o processo abrir mão da CPU
+                    std::this_thread::yield();
+                    // readquire mutex pra próxima iteração (com próximo processo)
+                    _sem_op(MUTEX, -1);
+                }
+            }
+        }
+
+        // MEMÓRIA COMPARTILHADA:
+        // recalcula qual slot a tail vai usar
         uint32_t slot = _ch->tail % ShmChannel::N;
+        // copia o frame pro slot na memória compartilhada
         std::memcpy(_ch->slots[slot], buf, len);
+        // registra o tamanho do frame no slot
         _ch->sizes[slot] = len;
+        // avança a tail (indica que o slot foi preenchido)
+        // e o próximo frame vai para o seguinte
         _ch->tail++;
 
-        // notifica todos os leitores registrados via SIGUSR1
+        // notifica que a memória compartilhada foi atualizada aos leitores
         for (int i = 0; i < ShmChannel::PROCS; i++) {
             pid_t pid = _ch->pids[i];
-            if (pid != 0 && pid != getpid()) // não notifica a si mesmo
+            // não notifica a si mesmo
+            if (pid != 0 && pid != getpid())
                 kill(pid, SIGUSR1);
         }
 
-        _sem_op(MUTEX, +1); // sai da seção crítica
+        // sai da seção crítica
+        _sem_op(MUTEX, +1);
 
         return static_cast<int>(len);
     }
@@ -123,7 +174,7 @@ private:
     // handler de sinal — sem alocação dinâmica, sem locks (async-signal-safe)
     static void _signal_handler(int) {
         if (!_instance) return;
-        _instance->_try_read();
+        sem_post(&_instance->_notify_sem);
     }
 
     // lê todos os frames pendentes para este processo
@@ -170,6 +221,9 @@ private:
     int                _semid;
     int                _idx;      // índice deste processo em ShmChannel::heads[]
     ShmChannel*        _ch;
+    sem_t _notify_sem;
+    std::thread _reader_thread;
+    std::atomic<bool> _running{true};
 
     // ponteiro global para o handler de sinal alcançar a instância
     static ShmEngine* _instance;
