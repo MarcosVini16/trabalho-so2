@@ -90,7 +90,7 @@ public:
         Protocol::Address from;
         int size = _channel->receive(buf, &from, msg->data(), Message::MAX_SIZE);
         msg->set_size(size > 0 ? size : 0);
-        msg->set_src(from.paddr);
+        msg->set_origin(from.paddr, 0);
 
         _data.insert(msg);
         _semaphore.v();

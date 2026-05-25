@@ -4,6 +4,7 @@
 #include "../engine/shm_engine.hpp"
 #include "../protocol.hpp"
 #include "../communicator.hpp"
+#include "../utils/position.hpp"
 #include <time.h>
 #include <cstdint>
 
@@ -27,8 +28,11 @@ public:
      * @param msg A mensagem a ser enviada.
      * @return true se a mensagem foi enviada com sucesso, false caso contrário.
     */
+    // envia uma message já montada
     bool send(const Message& msg) {
-        return communicator.send(&msg);
+        Message m = msg;
+        m.set_origin(communicator.address().paddr, Position::quadrant());
+        return communicator.send(&m);
     }
 
     bool share(const Message& msg, Protocol::Port dst_port) {
@@ -42,14 +46,21 @@ public:
      * @return true se os dados foram enviados com sucesso, false caso contrário.
     */
     bool send(const void* data, unsigned int size) {
+        // cria uma mensagem vazia, copia os dados pro buffer e registra o tamanho
         Message msg;
         std::memcpy(msg.data(), data, size);
         msg.set_size(size);
-        msg.set_src(communicator.address().paddr); // Define o endereço de origem da mensagem
+
+        // captura o timestamp e converte para um único número em nanosegundos
         timespec current_time;
         clock_gettime(CLOCK_REALTIME, &current_time);
-        uint64_t ts = current_time.tv_sec * 1000000000ULL + current_time.tv_nsec; // Convert to nanoseconds
+        uint64_t ts = current_time.tv_sec * 1000000000ULL + current_time.tv_nsec;
+
+        // preenche o origin da mensagem com o componente e o quadrante. preenche o timestamp
+        msg.set_origin(communicator.address().paddr, Position::quadrant());
         msg.set_timestamp(ts);
+        
+        // envia a mensagem pelo comunicator
         return communicator.send(&msg);
     }
     /*

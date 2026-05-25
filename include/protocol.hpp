@@ -102,6 +102,11 @@ class Protocol
             * Returns the number of bytes sent, or -1 on error.
         */
         int send(Address src, Address dst, const void* data, unsigned int size) {
+            
+            // se tem peer configurado e destino é broadcast, envia para o peer
+            if (_peer != Ethernet::Address() && dst.paddr == Ethernet::Address::BROADCAST())
+                dst.paddr = _peer;
+            
             for(auto* nic : _nics) {
                 Ethernet::Address exp = nic->expected_dst();
                 if (exp != Ethernet::Address() && dst.paddr != exp) {
@@ -154,6 +159,11 @@ class Protocol
                 buf->owner()->free(buf);
         }
 
+        // seta a RSU atual
+        void set_peer(Ethernet::Address peer) {
+            _peer = peer;
+        }
+
     private:
         // chamado pela NIC quando chega um frame com PROTO correto
         void update(Ethernet::Protocol, Buffer* buf) override {
@@ -188,5 +198,6 @@ class Protocol
             return PROTO;
         }
 
+        Ethernet::Address _peer; // MAC da RSU atual, vazio = broadcast
         std::list<NICBase*> _nics; // para suportar múltiplas NICs
 };

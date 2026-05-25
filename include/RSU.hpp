@@ -57,7 +57,8 @@ class RSU {
                 Message msg;
                 // Receive bloqueia, então não há busy waiting - tirei o sleep()
                 if(receive(msg)) {
-                    std::cout << "[RSU] mensagem recebida size=" << msg.size() << "\n";
+                    std::cout << "[RSU] size=" << msg.size() 
+                    << " sizeof(PTPFrame)=" << sizeof(PTPFrame) << "\n";
                     // Registra o momento de recebimento (T4 para Delay_Resp)
                     timespec receive_time;
                     clock_gettime(CLOCK_REALTIME, &receive_time);
@@ -88,7 +89,7 @@ class RSU {
                         }
                         std::memcpy(response.data(), &response_frame, sizeof(response_frame));
                         response.set_size(sizeof(response_frame));
-                        communicator.send_to(&response, msg.src());
+                        communicator.send_to(&response, msg.origin().address);
                     }
                 }
             }
