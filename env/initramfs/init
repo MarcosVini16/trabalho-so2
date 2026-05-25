@@ -8,6 +8,9 @@ mount -t devtmpfs dev /dev
 # levanta a interface de rede
 ip link set eth0 up
 
+# carrega o módulo de posição
+insmod /position.ko
+
 # lê role do cmdline do kernel
 ROLE=$(grep -oE 'role=[a-z]+' /proc/cmdline | cut -d= -f2)
 case "$ROLE" in

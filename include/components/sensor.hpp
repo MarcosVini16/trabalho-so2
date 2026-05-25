@@ -11,7 +11,7 @@ public:
             Message msg;
             if(receive(msg)) {
                 std::string txt(static_cast<char*>(msg.data()), msg.size());
-                //coutstd::cout << "[Sensor] recebeu: '" << txt << "'\n";
+                //std::cout << "[Sensor] recebeu: '" << txt << "'\n";
 
                 // ecoa de volta para o gateway via share (broadcast local)
                 Message resp;

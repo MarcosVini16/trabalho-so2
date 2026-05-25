@@ -16,6 +16,11 @@ SHM_TEST  = build/shm_test
 BUSYBOX_INSTALL = env/initramfs
 # kernel RISC-V pré-compilado
 KERNEL_IMAGE = env/Image
+
+# fontes do kernel para compilar módulos
+KDIR := $(HOME)/linux-6.15.5
+KERNEL_MODULE = kernel/position.ko
+
 # sistema de arquivos empacotado que a VM carrega na inicialização
 INITRAMFS = initramfs.cpio
 
@@ -61,10 +66,19 @@ shm_test: $(SHM_TEST)
 # Cada VM decide qual rodar via /init ou via append na linha de boot.
 # --------------------------------------------------------------------------
 
-initramfs: all
+$(KERNEL_MODULE):
+	@if [ ! -f kernel/position.ko ]; then \
+		rsync -a --exclude='*.ko' --exclude='*.o' kernel/ /tmp/so2_kernel_src/; \
+		make -C $(KDIR) M=/tmp/so2_kernel_src ARCH=riscv CROSS_COMPILE=riscv64-linux-gnu- modules; \
+		cp /tmp/so2_kernel_src/position.ko kernel/; \
+	fi
+
+initramfs: all $(KERNEL_MODULE)
 	cp $(VEHICLE) $(BUSYBOX_INSTALL)/
 	cp $(RSU)     $(BUSYBOX_INSTALL)/
+	cp $(KERNEL_MODULE) $(BUSYBOX_INSTALL)/
 	cd $(BUSYBOX_INSTALL) && find . | cpio -o -H newc > ../../$(INITRAMFS)
+
 
 # --------------------------------------------------------------------------
 # Targets de VM

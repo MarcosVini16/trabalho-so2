@@ -10,6 +10,7 @@
 #include <thread>
 #include <cstring>
 #include <string>
+#include <fstream>
 #include "../include/vehicle.hpp"
 #include "../include/components/sensor.hpp"
 #include "../include/components/actuator.hpp"
@@ -126,6 +127,17 @@ void run_normal(Gateway& gw) {
 // ---------------------------------------------------------------------------
 
 int main(int argc, char* argv[]) {
+
+    // no início do main, antes de tudo
+    std::ifstream f("/proc/position");
+    if (f) {
+        unsigned int q;
+        f >> q;
+        std::cout << "[main] quadrante inicial: " << q << "\n";
+    } else {
+        std::cerr << "[main] ERRO: /proc/position nao encontrado\n";
+    }
+
     std::cout << "=== Vehicle main (com TimeClient) ===\n";
     setup_signals();
 
