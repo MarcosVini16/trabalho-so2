@@ -23,11 +23,13 @@ extern volatile sig_atomic_t g_stop; // variável global para sinalizar parada t
  */
 class RSU {
     public:
-        RSU(const std::string& iface)
+        RSU(const std::string& iface, uint8_t quadrant)
             : nic(iface),
               protocol(&nic),
-              communicator(&protocol, Protocol::Address{nic.address(), Ports::RSU})
+              communicator(&protocol, Protocol::Address{nic.address(), Ports::RSU}),
+              _quadrant(quadrant)
         {
+            std::cout << "[RSU] quadrante=" << (int)_quadrant << "\n";
         }
 
         ~RSU() = default;
@@ -99,4 +101,5 @@ class RSU {
         NIC<RawSocketEngine> nic; // NIC para comunicação com a rede externa
         Protocol protocol; // Protocolo de comunicação
         Communicator communicator; // Camada de comunicação para enviar/receber mensagem
+        uint8_t _quadrant = 0;
 };

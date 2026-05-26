@@ -40,7 +40,8 @@ int main(int argc, char* argv[]) {
 
     const std::string iface = (argc > 1) ? argv[1] : "eth0";
 
-    RSU rsu(iface);
+    uint8_t quadrant = (argc > 3) ? std::stoi(argv[3]) : 0;
+    RSU rsu(iface, quadrant);
     std::cout << "[rsu] pid=" << getpid() << " iniciado em iface=" << iface << "\n";
 
     rsu.run(); // bloqueia até g_stop == 1

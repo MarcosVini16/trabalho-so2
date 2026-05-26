@@ -89,11 +89,13 @@ initramfs: all $(KERNEL_MODULE)
 # MACs: RSU = 00:...:FF, veículos = 00:...:01..04
 
 run: initramfs
-	@echo ">>> subindo RSU em background..."
-	@$(QEMU) $(NETDEV) \
-		-device virtio-net-device,netdev=net0,mac=00:00:00:00:00:FF \
-		--append "root=/dev/ram role=rsu" \
-		> rsu.log 2>&1 &
+	@echo ">>> subindo 4 RSUs em background..."
+	@for i in 0 1 2 3; do \
+		$(QEMU) $(NETDEV) \
+			-device virtio-net-device,netdev=net0,mac=00:00:00:00:00:FC \
+			--append "root=/dev/ram role=rsu quadrant=$$i" \
+			> rsu$$i.log 2>&1 & \
+	done
 	@sleep 1
 	@echo ">>> subindo veículos 1..3 em background..."
 	@for i in 1 2 3; do \
@@ -103,7 +105,7 @@ run: initramfs
 			> vehicle$$i.log 2>&1 & \
 	done
 	@sleep 1
-	@echo ">>> subindo veículo 4 em foreground (Ctrl-A x para sair)"
+	@echo ">>> subindo veículo 4 em foreground"
 	$(QEMU) $(NETDEV) \
 		-device virtio-net-device,netdev=net0,mac=00:00:00:00:00:04 \
 		--append "root=/dev/ram role=vehicle"
@@ -144,7 +146,7 @@ ptp:
 
 # --------------------------------------------------------------------------
 clean:
-	rm -rf build $(INITRAMFS) rsu.log vehicle*.log
+	rm -rf build $(INITRAMFS) rsu*.log vehicle*.log
 
 fix_multipass:
 	@echo ">>> corrigindo permissões do Multipass (requer sudo)"
