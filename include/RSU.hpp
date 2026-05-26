@@ -4,6 +4,7 @@
 #include "protocol.hpp"
 #include "communicator.hpp"
 #include "utils/ptp_frame.hpp"
+#include "utils/rsu_config.hpp"
 #include <time.h> // Para clock_gettime()
 #include <unistd.h> // Para sleep()
 #include <cstdint> // Para tipos uint
@@ -27,8 +28,14 @@ class RSU {
             : nic(iface),
               protocol(&nic),
               communicator(&protocol, Protocol::Address{nic.address(), Ports::RSU})
-        {
+    {
+        _quadrant = RSUConfig::quadrant_for_mac(nic.address());
+        if (_quadrant == 0xFF) {
+            std::cerr << "[RSU] AVISO: MAC não está na tabela RSUConfig, usando quadrante 0\n";
+            _quadrant = 0;
         }
+        std::cout << "[RSU] quadrante=" << (int)_quadrant << "\n";
+    }
 
         ~RSU() = default;
 
@@ -51,12 +58,22 @@ class RSU {
         }
 
         void run() {
+            std::cout << "[RSU] MAC=" << std::hex << (int)nic.address().bytes[5] 
+            << " quadrante=" << (int)_quadrant << std::dec << "\n";
             std::cout << "[RSU] entrando no loop\n";
             while(!g_stop) {
                 std::cout << "[RSU] aguardando mensagem...\n";
                 Message msg;
                 // Receive bloqueia, então não há busy waiting - tirei o sleep()
                 if(receive(msg)) {
+                    std::cout << "[RSU] recebeu quadrante=" << (int)msg.quadrant() 
+                    << " meu=" << (int)_quadrant << "\n";
+                    if (msg.quadrant() != _quadrant) {
+                        std::cout << "[RSU] descartou msg quadrante=" << (int)msg.quadrant() 
+                                << " meu=" << (int)_quadrant << "\n";
+                        continue;
+                    }
+
                     std::cout << "[RSU] size=" << msg.size() 
                     << " sizeof(PTPFrame)=" << sizeof(PTPFrame) << "\n";
                     // Registra o momento de recebimento (T4 para Delay_Resp)
@@ -89,7 +106,7 @@ class RSU {
                         }
                         std::memcpy(response.data(), &response_frame, sizeof(response_frame));
                         response.set_size(sizeof(response_frame));
-                        communicator.send_to(&response, msg.origin().address);
+                        communicator.send_to(&response, msg.src()); 
                     }
                 }
             }
@@ -100,4 +117,5 @@ class RSU {
         NIC<RawSocketEngine> nic; // NIC para comunicação com a rede externa
         Protocol protocol; // Protocolo de comunicação
         Communicator communicator; // Camada de comunicação para enviar/receber mensagem
+        uint8_t              _quadrant = 0;
 };

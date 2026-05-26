@@ -31,7 +31,7 @@ public:
     // envia uma message já montada
     bool send(const Message& msg) {
         Message m = msg;
-        m.set_origin(communicator.address().paddr, Position::quadrant());
+        m.set_origin(Position::quadrant());
         return communicator.send(&m);
     }
 
@@ -57,7 +57,7 @@ public:
         uint64_t ts = current_time.tv_sec * 1000000000ULL + current_time.tv_nsec;
 
         // preenche o origin da mensagem com o componente e o quadrante. preenche o timestamp
-        msg.set_origin(communicator.address().paddr, Position::quadrant());
+        msg.set_origin(Position::quadrant());
         msg.set_timestamp(ts);
         
         // envia a mensagem pelo comunicator

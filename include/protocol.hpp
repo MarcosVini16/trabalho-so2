@@ -6,6 +6,9 @@
 #include "utils/traits.hpp"
 #include "utils/ports.hpp"
 #include "utils/ptp_frame.hpp"
+#include "utils/position.hpp"
+#include "utils/rsu_config.hpp"
+#include "utils/position.hpp"
 #include "observe/conditional.hpp"
 #include <arpa/inet.h> // for htons and ntohs
 #include <list>
@@ -51,7 +54,8 @@ class Protocol
         struct Header {
             uint16_t src_port;
             uint16_t dst_port;
-            uint16_t payload_size; //
+            uint16_t payload_size;
+            uint8_t  src_quadrant;
         } __attribute__((packed));
 
         static const unsigned int MTU = NICBase::MTU - sizeof(Header);
@@ -101,8 +105,11 @@ class Protocol
             * The function iterates through all attached NICs and attempts to send the message through each one until it succeeds.
             * Returns the number of bytes sent, or -1 on error.
         */
-        int send(Address src, Address dst, const void* data, unsigned int size) {
+        int send(Address src, Address dst, const void* data, unsigned int size, uint8_t quadrant = 0) {
             
+            // atualiza peer baseado no quadrante atual
+            _peer = RSUConfig::mac_for_quadrant(Position::quadrant());
+
             // se tem peer configurado e destino é broadcast, envia para o peer
             if (_peer != Ethernet::Address() && dst.paddr == Ethernet::Address::BROADCAST())
                 dst.paddr = _peer;
@@ -123,6 +130,7 @@ class Protocol
                 pkt->header.src_port = htons(src.port);    // extrai a porta
                 pkt->header.dst_port = htons(dst.port);
                 pkt->header.payload_size = htons(static_cast<uint16_t>(size));
+                pkt->header.src_quadrant = quadrant;
 
                 std::memcpy(pkt->data, data, size);
                 nic->send(buf);
@@ -132,15 +140,16 @@ class Protocol
         }
 
         // extrai dados de um buffer recebido e preenche src
-        int receive(Buffer* buf, Address* src, void* data, unsigned int size) {
-            if(!buf) return -1;
-            //std::cout << "[protocol] receive chamado buf->size()=" << buf->size() << "\n";
+        int receive(Buffer* buf, Address* src, void* data, unsigned int size, uint8_t* out_quadrant = nullptr) {
+            if (!buf) return -1;
             auto* pkt = buf->data<Packet>();
-            if(src) {
+            if (src) {
                 // MAC vem do frame Ethernet
                 src->paddr = buf->frame()->src;
                 src->port = ntohs(pkt->header.src_port);
             }
+            if (out_quadrant)
+                *out_quadrant = pkt->header.src_quadrant;
             uint16_t real_size = ntohs(pkt->header.payload_size);
             unsigned int len = std::min(size, static_cast<unsigned int>(real_size));
             std::memcpy(data, pkt->data, len);
@@ -167,12 +176,24 @@ class Protocol
     private:
         // chamado pela NIC quando chega um frame com PROTO correto
         void update(Ethernet::Protocol, Buffer* buf) override {
-            //std::cout << "[protocol] update chamado\n";
             auto* pkt = buf->data<Packet>();
-            Port dst_port = ntohs(pkt->header.dst_port);
-            //std::cout << "[protocol] dst_port=" << dst_port << "\n";
-            // Checa se foi shm (próprio endereço)
+
+            std::cout << "[protocol] frame recebido src_quadrant=" 
+            << (int)pkt->header.src_quadrant 
+            << " meu=" << (int)Position::quadrant() 
+            << " dst_port=" << ntohs(pkt->header.dst_port) << "\n";
+
+            // descarta frames de outros quadrantes
+            if (pkt->header.src_quadrant != Position::quadrant()) {
+                std::cout << "[protocol] descartou frame src_quadrant=" 
+                        << (int)pkt->header.src_quadrant 
+                        << " meu=" << (int)Position::quadrant() << "\n";
+                free(buf);
+                return;
+            }
             
+            Port dst_port = ntohs(pkt->header.dst_port);
+
             if(dst_port == 0) {
                 // broadcast — verifica se é PTP
                 if (ntohs(pkt->header.payload_size) == sizeof(PTPFrame)) {

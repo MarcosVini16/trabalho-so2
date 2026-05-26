@@ -1,10 +1,10 @@
 #pragma once
 
 #include "component.hpp"
-#include "mobility.hpp"
 #include "../utils/ptp_frame.hpp"
 #include "../engine/raw_socket_engine.hpp"
 #include "../utils/stats.hpp"
+#include "../utils/position.hpp"
 #include <time.h>
 #include <unistd.h>
 #include <cstring>
@@ -44,11 +44,6 @@ public:
         _seq = _seq_base;
 
         protocol.attach_nic(&rs_nic);
-
-        _mobility = Mobility();
-        Ethernet::Address rsu = _mobility.rsu_mac();
-        protocol.set_peer(rsu);
-        rs_nic.set_filter(rsu);
     }
 
     void syncTime() 
@@ -80,7 +75,7 @@ public:
         std::memcpy(msg.data(), &req, sizeof(req));
 
         msg.set_size(sizeof(req));
-        msg.set_origin(communicator.address().paddr, _quadrant);
+        msg.set_origin(Position::quadrant());
 
         send(msg);
         
@@ -143,7 +138,7 @@ public:
         std::memcpy(delay_req.data(), &dreq, sizeof(dreq));
 
         delay_req.set_size(sizeof(dreq));
-        delay_req.set_origin(communicator.address().paddr, _quadrant);
+        delay_req.set_origin(Position::quadrant());
 
         send(delay_req);
 
@@ -238,8 +233,6 @@ public:
 
     void run()
     {   
-        // pega o quadrante atual
-        _quadrant = _mobility.quadrant();
         // o último offset é guardado para o algoritmo de intervalo adaptativo
         int64_t last_offset = 0;
         // começa em 500ms
@@ -248,23 +241,6 @@ public:
 
         while (!g_stop)
         {   
-            // se o quadrante mudou:
-            if (_mobility.update()) {
-                // seta o novo quadrante
-                _quadrant = _mobility.quadrant();
-                // pega o MAC da nova RSU
-                Ethernet::Address rsu = _mobility.rsu_mac();
-
-                // protocol passa a enviar para a nova RSU
-                protocol.set_peer(rsu);
-                // NIC passa a aceitar só frames da nova RSU
-                rs_nic.set_filter(rsu);
-
-                std::cout << "[TimeClient] trocou para quadrante " << (int)_quadrant 
-                << " (RSU " << std::hex << (int)rsu.bytes[5] << std::dec << ")\n";
-
-                PTP_LOG("[TimeClient] trocou para quadrante " << (int)_mobility.quadrant() << "\n");
-            }
             syncTime();
             
             // calcula a variação do offset
@@ -291,12 +267,6 @@ public:
 
 private:
     NIC<RawSocketEngine> rs_nic;
-
-    Mobility _mobility;
-
-    uint8_t _quadrant = 0;
     uint32_t _seq;
     uint32_t _seq_base;
-
-    bool _synced = false;
 };

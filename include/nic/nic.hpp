@@ -71,12 +71,6 @@ public:
         Observed::detach(obs, prot);
     }
 
-    // configura qual MAC de origem a NIC deve aceitar
-    // a NIC deve descartar frames que não vem do MAC da RSU correta
-    void set_filter(Ethernet::Address src_filter) {
-        _src_filter = src_filter;
-    }
-
     Address address() const override { return _address; }
 
     Address expected_dst() const override {
@@ -86,18 +80,9 @@ public:
 private:
 
     void _handle(void* raw, size_t len) override {
-        //std::cout << "[nic] _handle chamado len=" << len << "\n";
-        //std::cout << "[nic] pid = " << getpid() << "\n";
         auto* frame = static_cast<Ethernet::Frame*>(raw);
 
-        // descarta frame que não vem da RSU correta
-        if (_src_filter != Ethernet::Address() && frame->src != _src_filter) {
-            return;
-        }
-
         uint16_t etype = ntohs(frame->type);
-        //std::cout << "[nic] frame recebido EtherType=0x" 
-            //<< std::hex << etype << std::dec << "\n";
 
         std::lock_guard<std::mutex> lock(_pool_mutex);
         for(auto& buf : _buffer) {
@@ -116,7 +101,6 @@ private:
     }
 
     Address                  _address;
-    Ethernet::Address        _src_filter; 
     std::mutex               _pool_mutex; // protege o pool de buffers contra acesso concorrente
     Buffer  _buffer[NICBase::BUFFER_COUNT];
 };

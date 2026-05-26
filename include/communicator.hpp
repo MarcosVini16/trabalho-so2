@@ -5,7 +5,6 @@
 #include "utils/buffer.hpp"
 #include "ethernet.hpp"
 #include "protocol.hpp"
-#include <chrono>
 #include <iostream>
 
 class Communicator
@@ -23,6 +22,7 @@ public:
 
     ~Communicator() {
         _channel->detach(this, _address.port);
+        _semaphore.v();
     }
 
     bool send(const Message* msg) {
@@ -30,7 +30,8 @@ public:
             _address,
             Protocol::Address::BROADCAST(),
             msg->data(),
-            msg->size()
+            msg->size(),
+            msg->quadrant()
         ) > 0;
     }
 
@@ -41,7 +42,8 @@ public:
             _address,
             dst,
             msg->data(),
-            msg->size()
+            msg->size(),
+            msg->quadrant()
         ) > 0;
     }
 
@@ -51,7 +53,8 @@ public:
             _address,
             dst_addr,
             msg->data(),
-            msg->size()
+            msg->size(),
+            msg->quadrant()
         ) > 0;
     }
 
@@ -59,9 +62,7 @@ public:
         // bloqueia a thread até ter algum buffer na lista
         // (o update acorda via _semaphore.v())
         // _semaphore.p();
-        if (!_semaphore.try_p_for(std::chrono::milliseconds(10))) { // timeout para evitar bloqueio infinito (pode ser ajustado conforme necessário)
-            return false;
-        }
+        _semaphore.p();
         //std::cout << "[communicator] acordou, lendo buffer\n";
 
         Message* internal = _data.empty() ? nullptr : _data.remove();
@@ -88,9 +89,12 @@ public:
         // e libera o buffer da NIC imediatamente — não fica segurando o pool
         Message* msg = new Message();
         Protocol::Address from;
-        int size = _channel->receive(buf, &from, msg->data(), Message::MAX_SIZE);
+
+        uint8_t q = 0;
+        int size = _channel->receive(buf, &from, msg->data(), Message::MAX_SIZE, &q);
         msg->set_size(size > 0 ? size : 0);
-        msg->set_origin(from.paddr, 0);
+        msg->set_src(from.paddr);
+        msg->set_origin(q);
 
         _data.insert(msg);
         _semaphore.v();
