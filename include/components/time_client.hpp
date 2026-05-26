@@ -4,6 +4,7 @@
 #include "../utils/ptp_frame.hpp"
 #include "../engine/raw_socket_engine.hpp"
 #include "../utils/stats.hpp"
+#include "../utils/position.hpp"
 
 #include <time.h>
 #include <unistd.h>
@@ -242,7 +243,7 @@ public:
         while (!g_stop)
         {
             syncTime();
-            
+            std::cout << "MEU QUADRANTE: " << (int)Position::quadrant() << "\n";
             // calcula a variação do offset
             int64_t delta = std::abs(g_stats.last_offset_ns - last_offset);
             last_offset = g_stats.last_offset_ns;

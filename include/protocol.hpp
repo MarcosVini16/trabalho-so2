@@ -11,6 +11,7 @@
 #include <list>
 #include <execinfo.h>
 #include <iostream>
+#include "utils/position.hpp"
 
 class Protocol
     : public ConditionalObserver<Buffer<Ethernet::Frame>,
@@ -158,8 +159,14 @@ class Protocol
 
         static void set_quadrant(uint8_t q) { _quadrant = q & 0x3; }
         static uint8_t get_quadrant() { return _quadrant; }
+
         static bool accept(uint8_t src_quadrant) {
-            return src_quadrant == _quadrant;
+            return src_quadrant == Position::quadrant();
+        }
+
+        static bool verifica_quadrante(Ethernet::Frame* frame) {
+            auto* pkt = reinterpret_cast<Packet *>(frame->data);
+            return accept(pkt->header.src_quadrant);
         }
 
     private:
@@ -191,11 +198,8 @@ class Protocol
             free(buf);
         }
 
-        static bool accept_frame(const void* raw, size_t len) {
-            if (len < offsetof(Ethernet::Frame, data) + sizeof(Header)) return true;
-            auto* phdr = reinterpret_cast<const Header*>(
-                static_cast<const uint8_t*>(raw) + offsetof(Ethernet::Frame, data));
-            return accept(phdr->src_quadrant);
+        static bool accept_frame(const Packet* pkt) {
+            return accept(pkt->header.src_quadrant);
         }
 
         // necessário para o Ordered_List filtrar por condição

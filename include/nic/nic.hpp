@@ -84,15 +84,22 @@ private:
     void _handle(void* raw, size_t len) override {
         auto* frame = static_cast<Ethernet::Frame*>(raw);
 
-        if (!Protocol::accept_frame(raw, len)) return;
-
         uint16_t etype = ntohs(frame->type);
+
+        if (!Protocol::verifica_quadrante(frame)) {
+            return;
+        }
 
         std::lock_guard<std::mutex> lock(_pool_mutex);
         for(auto& buf : _buffer) {
             if(buf.is_free()) {
                 buf.allocate();
                 buf.set_size(len);
+                // auto* phdr = reinterpret_cast<Protocol::Header*>(buf.frame()->data);
+                // if (!Protocol::accept(phdr->src_port)) {
+                //     buf.release();
+                //     return;
+                // }
                 std::memcpy(buf.frame(), raw, len);
 
                 uint16_t frame_etype = ntohs(buf.frame()->type);
