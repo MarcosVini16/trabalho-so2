@@ -45,8 +45,12 @@ class Message {
     Ethernet::Address src() const { return _src; }
     void set_src(Ethernet::Address addr) { _src = addr; }
 
+    uint8_t origin() const { return _origin & 0x3; }
+    void set_origin(uint8_t q) { _origin = q & 0x3; }
+
     private:
 
+    uint8_t _origin = 0;
     uint8_t      _data[MAX_SIZE];
     unsigned int _size;
     Ethernet::Address _src; // Para armazenar o endereço de origem (caso seja necessário para respostas)

@@ -51,7 +51,8 @@ class Protocol
         struct Header {
             uint16_t src_port;
             uint16_t dst_port;
-            uint16_t payload_size; //
+            uint16_t payload_size;
+            uint8_t src_quadrant;
         } __attribute__((packed));
 
         static const unsigned int MTU = NICBase::MTU - sizeof(Header);
@@ -101,7 +102,7 @@ class Protocol
             * The function iterates through all attached NICs and attempts to send the message through each one until it succeeds.
             * Returns the number of bytes sent, or -1 on error.
         */
-        int send(Address src, Address dst, const void* data, unsigned int size) {
+        int send(Address src, Address dst, const void* data, unsigned int size, uint8_t quadrant) {
             for(auto* nic : _nics) {
                 Ethernet::Address exp = nic->expected_dst();
                 if (exp != Ethernet::Address() && dst.paddr != exp) {
@@ -117,6 +118,7 @@ class Protocol
                 // monta — separa o Address em seus campos primitivos
                 pkt->header.src_port = htons(src.port);    // extrai a porta
                 pkt->header.dst_port = htons(dst.port);
+                pkt->header.src_quadrant = quadrant;
                 pkt->header.payload_size = htons(static_cast<uint16_t>(size));
 
                 std::memcpy(pkt->data, data, size);
@@ -154,6 +156,12 @@ class Protocol
                 buf->owner()->free(buf);
         }
 
+        static void set_quadrant(uint8_t q) { _quadrant = q & 0x3; }
+        static uint8_t get_quadrant() { return _quadrant; }
+        static bool accept(uint8_t src_quadrant) {
+            return src_quadrant == _quadrant;
+        }
+
     private:
         // chamado pela NIC quando chega um frame com PROTO correto
         void update(Ethernet::Protocol, Buffer* buf) override {
@@ -183,10 +191,19 @@ class Protocol
             free(buf);
         }
 
+        static bool accept_frame(const void* raw, size_t len) {
+            if (len < offsetof(Ethernet::Frame, data) + sizeof(Header)) return true;
+            auto* phdr = reinterpret_cast<const Header*>(
+                static_cast<const uint8_t*>(raw) + offsetof(Ethernet::Frame, data));
+            return accept(phdr->src_quadrant);
+        }
+
         // necessário para o Ordered_List filtrar por condição
         Ethernet::Protocol condition() const override {
             return PROTO;
         }
 
         std::list<NICBase*> _nics; // para suportar múltiplas NICs
+        template<typename E> friend class NIC;
+        static inline uint8_t _quadrant = 0xFF;
 };

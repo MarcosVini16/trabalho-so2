@@ -5,6 +5,8 @@
 #include <mutex>
 #include <arpa/inet.h> // for htons and ntohs
 #include <unistd.h> // for getpid
+#include "protocol.hpp"
+#include "../utils/position.hpp"
 /*
     * A Network Interface Card (NIC) class that combines a specific Engine (E) with the NICBase interface.
     * Sends and receives Ethernet frames using the underlying Engine's capabilities, 
@@ -19,6 +21,7 @@ public:
     template<typename... Args>
     NIC(Args&&... args) : E(std::forward<Args>(args)...) {
         _address = this->read_address();  // correto — método de instância
+        Protocol::set_quadrant(Position::quadrant());
     }
 
     int send(Buffer* buf) override {
@@ -79,13 +82,11 @@ public:
 
 private:
     void _handle(void* raw, size_t len) override {
-        //std::cout << "[nic] _handle chamado len=" << len << "\n";
-        //std::cout << "[nic] pid = " << getpid() << "\n";
         auto* frame = static_cast<Ethernet::Frame*>(raw);
 
+        if (!Protocol::accept_frame(raw, len)) return;
+
         uint16_t etype = ntohs(frame->type);
-        //std::cout << "[nic] frame recebido EtherType=0x" 
-            //<< std::hex << etype << std::dec << "\n";
 
         std::lock_guard<std::mutex> lock(_pool_mutex);
         for(auto& buf : _buffer) {

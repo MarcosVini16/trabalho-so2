@@ -29,6 +29,7 @@ class RSU {
               communicator(&protocol, Protocol::Address{nic.address(), Ports::RSU}),
               _quadrant(quadrant)
         {
+            Protocol::set_quadrant(_quadrant);
             std::cout << "[RSU] quadrante=" << (int)_quadrant << "\n";
         }
 
