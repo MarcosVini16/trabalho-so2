@@ -21,7 +21,6 @@ public:
     template<typename... Args>
     NIC(Args&&... args) : E(std::forward<Args>(args)...) {
         _address = this->read_address();  // correto — método de instância
-        Protocol::set_quadrant(Position::quadrant());
     }
 
     int send(Buffer* buf) override {

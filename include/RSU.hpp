@@ -7,6 +7,7 @@
 #include <time.h> // Para clock_gettime()
 #include <unistd.h> // Para sleep()
 #include <cstdint> // Para tipos uint
+#include "utils/position.hpp"
 
 #ifdef DEBUG_PTP
     #define PTP_LOG(x) std::cout << x
@@ -31,6 +32,8 @@ class RSU {
         {
             Protocol::set_quadrant(_quadrant);
             std::cout << "[RSU] quadrante=" << (int)_quadrant << "\n";
+            std::cout << "[RSU] quadrante(PROTOCOL)=" << (int)Protocol::get_quadrant() << "\n";
+            std::cout << "[RSU] quadrante(positionqdrnt)=" << (int)Position::quadrant() << "\n";
         }
 
         ~RSU() = default;

@@ -6,9 +6,9 @@ class Position {
 public:
     static uint8_t quadrant() {
         std::ifstream f("/proc/position");
-        if (!f) return 0;
+        if (!f) return 255;
         unsigned int q = 0;
         f >> q;
-        return static_cast<uint8_t>(q & 0x3);
+        return static_cast<uint8_t>(q);
     }
 };

@@ -81,11 +81,11 @@ void run_normal(Gateway& gw) {
             std::memcpy(msg.data(), txt.c_str(), txt.size());
             msg.set_size(txt.size());
             bool ok = gw.send(msg);
-            //std::cout << "[gateway/net] enviou '" << txt
-                      //<< "' ok=" << ok << "\n";
+            std::cout << "[gateway/net] enviou '" << txt
+                      << "' ok=" << ok << "\n";
             std::this_thread::sleep_for(std::chrono::seconds(2));
         }
-        //std::cout << "[gateway/net] saindo...\n";
+        std::cout << "[gateway/net] saindo...\n";
     });
 
     std::thread shm_sender = std::thread([&gw]() {
@@ -99,10 +99,10 @@ void run_normal(Gateway& gw) {
             gw.share(msg, Ports::SENSOR);
             gw.share(msg, Ports::ACTUATOR);
             bool ok = gw.share(msg, Ports::POWERTRAIN);
-            //std::cout << "[gateway/shm] compartilhou '" << txt
-                      //<< "' ok=" << ok << "\n";
+            std::cout << "[gateway/shm] compartilhou '" << txt
+                      << "' ok=" << ok << "\n";
         }
-        //std::cout << "[gateway/shm] saindo...\n";
+        std::cout << "[gateway/shm] saindo...\n";
     });
 
     while(!g_stop) {
@@ -111,15 +111,15 @@ void run_normal(Gateway& gw) {
             size_t sz = msg.size();
             if(sz > 0 && sz <= Message::MAX_SIZE) {
                 std::string txt(static_cast<char*>(msg.data()), sz);
-                //std::cout << "[gateway] recebeu: '" << txt << "'\n";
+                std::cout << "[gateway] recebeu: '" << txt << "'\n";
             }
         }
     }
 
-    //std::cout << "[gateway] shutdown iniciado, aguardando threads...\n";
+    std::cout << "[gateway] shutdown iniciado, aguardando threads...\n";
     if(net_sender.joinable()) net_sender.join();
     if(shm_sender.joinable()) shm_sender.join();
-    //std::cout << "[gateway] saindo...\n";
+    std::cout << "[gateway] saindo...\n";
 }
 
 // ---------------------------------------------------------------------------

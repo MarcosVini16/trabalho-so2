@@ -72,6 +72,7 @@ class Protocol
     public:
         Protocol(NICBase* nic) {
             attach_nic(nic);
+            _quadrant = 255;
         }
 
         ~Protocol() {
@@ -103,7 +104,7 @@ class Protocol
             * The function iterates through all attached NICs and attempts to send the message through each one until it succeeds.
             * Returns the number of bytes sent, or -1 on error.
         */
-        int send(Address src, Address dst, const void* data, unsigned int size, uint8_t quadrant) {
+        int send(Address src, Address dst, const void* data, unsigned int size) {
             for(auto* nic : _nics) {
                 Ethernet::Address exp = nic->expected_dst();
                 if (exp != Ethernet::Address() && dst.paddr != exp) {
@@ -119,7 +120,15 @@ class Protocol
                 // monta — separa o Address em seus campos primitivos
                 pkt->header.src_port = htons(src.port);    // extrai a porta
                 pkt->header.dst_port = htons(dst.port);
-                pkt->header.src_quadrant = quadrant;
+                
+                uint8_t pos = get_quadrant();
+                if (pos == 255) {
+                    pkt->header.src_quadrant = Position::quadrant();
+                    //std::cout <<"POSITON QUADRANT=" << (int)Position::quadrant() << "\n";;
+                } else {
+                    pkt->header.src_quadrant = pos;
+                    //std::cout <<"pos=" << (int)pos << "\n";
+                }
                 pkt->header.payload_size = htons(static_cast<uint16_t>(size));
 
                 std::memcpy(pkt->data, data, size);
@@ -161,12 +170,23 @@ class Protocol
         static uint8_t get_quadrant() { return _quadrant; }
 
         static bool accept(uint8_t src_quadrant) {
-            return src_quadrant == Position::quadrant();
+
+            uint8_t pos = get_quadrant();
+            if (pos == 255) {
+                std::cout << "[protocol] meu Q=" << (int)Position::quadrant() << "\n";
+                std::cout << "[protocol] quem enviou" << (int)src_quadrant << "\n";
+                return src_quadrant == Position::quadrant();
+            }
+            
+            std::cout << "[protocol] meu Q=" << (int)pos << "\n";
+            std::cout << "[protocol] quem enviou" << (int)src_quadrant << "\n";
+            return src_quadrant == pos;
         }
 
         static bool verifica_quadrante(Ethernet::Frame* frame) {
             auto* pkt = reinterpret_cast<Packet *>(frame->data);
-            return accept(pkt->header.src_quadrant);
+            uint8_t my_q = (_quadrant != 255) ? _quadrant : Position::quadrant();
+            return pkt->header.src_quadrant == my_q;
         }
 
     private:
@@ -209,5 +229,5 @@ class Protocol
 
         std::list<NICBase*> _nics; // para suportar múltiplas NICs
         template<typename E> friend class NIC;
-        static inline uint8_t _quadrant = 0xFF;
+        static inline uint8_t _quadrant;
 };
