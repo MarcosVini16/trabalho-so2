@@ -230,6 +230,8 @@ public:
         }
         
         PTP_LOG("[TimeClient] correction=" << correction << "\n");
+        std::cout << "[TimeClient] Sincronização finalizada (RSU:" 
+                  << (int)delay_resp.origin() << ")\n";
     }
 
     void run()
@@ -242,8 +244,8 @@ public:
 
         while (!g_stop)
         {
-            syncTime();
             std::cout << "MEU QUADRANTE: " << (int)Position::quadrant() << "\n";
+            syncTime();
             // calcula a variação do offset
             int64_t delta = std::abs(g_stats.last_offset_ns - last_offset);
             last_offset = g_stats.last_offset_ns;
@@ -259,11 +261,11 @@ public:
 
         }
 
-        PTP_LOG("\n====== PTP STATS ======\n");
-        PTP_LOG("PTP sync OK: " << g_stats.ptp_sync_ok << "\n");
-        PTP_LOG("PTP timeouts: " << g_stats.ptp_sync_timeout << "\n");
-        PTP_LOG("Ultimo offset: " << g_stats.last_offset_ns << " ns\n");
-        PTP_LOG("=======================\n");
+        std::cout << "\n====== PTP STATS ======\n";
+        std::cout << "PTP sync OK: " << g_stats.ptp_sync_ok << "\n";
+        std::cout << "PTP timeouts: " << g_stats.ptp_sync_timeout << "\n";
+        std::cout << "Ultimo offset: " << g_stats.last_offset_ns << " ns\n";
+        std::cout << "=======================\n";
     }
 
 private:

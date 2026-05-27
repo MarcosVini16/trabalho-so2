@@ -218,10 +218,6 @@ class Protocol
             free(buf);
         }
 
-        static bool accept_frame(const Packet* pkt) {
-            return accept(pkt->header.src_quadrant);
-        }
-
         // necessário para o Ordered_List filtrar por condição
         Ethernet::Protocol condition() const override {
             return PROTO;

@@ -87,9 +87,15 @@ public:
         // e libera o buffer da NIC imediatamente — não fica segurando o pool
         Message* msg = new Message();
         Protocol::Address from;
+
+        // pega o quadrante do header antes de chamar receive
+        auto* pkt = buf->data<Protocol::Packet>();
+        uint8_t q = pkt->header.src_quadrant;
+
         int size = _channel->receive(buf, &from, msg->data(), Message::MAX_SIZE);
         msg->set_size(size > 0 ? size : 0);
         msg->set_src(from.paddr);
+        msg->set_origin(q);
 
         _data.insert(msg);
         _semaphore.v();
