@@ -11,7 +11,7 @@ public:
             Message msg;
             if(receive(msg)) {
                 std::string txt(static_cast<char*>(msg.data()), msg.size());
-                std::cout << "[Actuator] recebeu: '" << txt << "'\n";
+                //std::cout << "[Actuator] recebeu: '" << txt << "'\n";
             }
         }
     }

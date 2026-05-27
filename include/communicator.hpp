@@ -34,6 +34,17 @@ public:
         ) > 0;
     }
 
+    // pro RSU
+    bool send_to(const Message* msg, Ethernet::Address dst_mac) {
+        Protocol::Address dst{dst_mac, 0};
+        return _channel->send(
+            _address,
+            dst,
+            msg->data(),
+            msg->size()
+        ) > 0;
+    }
+
     bool share(const Message* msg, Protocol::Port dst_port) {
         Protocol::Address dst_addr{_address.paddr, dst_port};
         return _channel->send(
@@ -48,10 +59,9 @@ public:
         // bloqueia a thread até ter algum buffer na lista
         // (o update acorda via _semaphore.v())
         // _semaphore.p();
-        if (!_semaphore.try_p_for(std::chrono::milliseconds(10))) { // timeout para evitar bloqueio infinito (pode ser ajustado conforme necessário)
+        if (!_semaphore.try_p_for(std::chrono::milliseconds(100))) { // timeout para evitar bloqueio infinito (pode ser ajustado conforme necessário)
             return false;
         }
-        //std::cout << "[communicator] acordou, lendo buffer\n";
 
         Message* internal = _data.empty() ? nullptr : _data.remove();
 
@@ -77,9 +87,15 @@ public:
         // e libera o buffer da NIC imediatamente — não fica segurando o pool
         Message* msg = new Message();
         Protocol::Address from;
+
+        // pega o quadrante do header antes de chamar receive
+        auto* pkt = buf->data<Protocol::Packet>();
+        uint8_t q = pkt->header.src_quadrant;
+
         int size = _channel->receive(buf, &from, msg->data(), Message::MAX_SIZE);
         msg->set_size(size > 0 ? size : 0);
         msg->set_src(from.paddr);
+        msg->set_origin(q);
 
         _data.insert(msg);
         _semaphore.v();

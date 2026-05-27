@@ -11,6 +11,7 @@
 #include <list>
 #include <execinfo.h>
 #include <iostream>
+#include "utils/position.hpp"
 
 class Protocol
     : public ConditionalObserver<Buffer<Ethernet::Frame>,
@@ -51,7 +52,8 @@ class Protocol
         struct Header {
             uint16_t src_port;
             uint16_t dst_port;
-            uint16_t payload_size; //
+            uint16_t payload_size;
+            uint8_t src_quadrant;
         } __attribute__((packed));
 
         static const unsigned int MTU = NICBase::MTU - sizeof(Header);
@@ -70,6 +72,7 @@ class Protocol
     public:
         Protocol(NICBase* nic) {
             attach_nic(nic);
+            _quadrant = 255;
         }
 
         ~Protocol() {
@@ -103,12 +106,12 @@ class Protocol
         */
         int send(Address src, Address dst, const void* data, unsigned int size) {
             for(auto* nic : _nics) {
-                if (dst.paddr != nic->expected_dst()) {
-                    //std::cout << "[protocol] NIC não passou!";
-                    continue; // esta NIC não é adequada para o destino
+                Ethernet::Address exp = nic->expected_dst();
+                if (exp != Ethernet::Address() && dst.paddr != exp) {
+                    continue;
                 }
                 //std::cout << "[protocol] NIC passou, tentando enviar...\n";
-                auto* buf = nic->alloc(Ethernet::Address::BROADCAST(),
+                auto* buf = nic->alloc(dst.paddr,
                                     htons(PROTO), sizeof(Header) + size); // htons to convert protocol number to network byte order (correctly filter frames in the NIC)
                 if(!buf) continue;
 
@@ -117,6 +120,15 @@ class Protocol
                 // monta — separa o Address em seus campos primitivos
                 pkt->header.src_port = htons(src.port);    // extrai a porta
                 pkt->header.dst_port = htons(dst.port);
+                
+                uint8_t pos = get_quadrant();
+                if (pos == 255) {
+                    pkt->header.src_quadrant = Position::quadrant();
+                    //std::cout <<"POSITON QUADRANT=" << (int)Position::quadrant() << "\n";;
+                } else {
+                    pkt->header.src_quadrant = pos;
+                    //std::cout <<"pos=" << (int)pos << "\n";
+                }
                 pkt->header.payload_size = htons(static_cast<uint16_t>(size));
 
                 std::memcpy(pkt->data, data, size);
@@ -154,6 +166,29 @@ class Protocol
                 buf->owner()->free(buf);
         }
 
+        static void set_quadrant(uint8_t q) { _quadrant = q & 0x3; }
+        static uint8_t get_quadrant() { return _quadrant; }
+
+        static bool accept(uint8_t src_quadrant) {
+
+            uint8_t pos = get_quadrant();
+            if (pos == 255) {
+                std::cout << "[protocol] meu Q=" << (int)Position::quadrant() << "\n";
+                std::cout << "[protocol] quem enviou" << (int)src_quadrant << "\n";
+                return src_quadrant == Position::quadrant();
+            }
+            
+            std::cout << "[protocol] meu Q=" << (int)pos << "\n";
+            std::cout << "[protocol] quem enviou" << (int)src_quadrant << "\n";
+            return src_quadrant == pos;
+        }
+
+        static bool verifica_quadrante(Ethernet::Frame* frame) {
+            auto* pkt = reinterpret_cast<Packet *>(frame->data);
+            uint8_t my_q = (_quadrant != 255) ? _quadrant : Position::quadrant();
+            return pkt->header.src_quadrant == my_q;
+        }
+
     private:
         // chamado pela NIC quando chega um frame com PROTO correto
         void update(Ethernet::Protocol, Buffer* buf) override {
@@ -189,4 +224,6 @@ class Protocol
         }
 
         std::list<NICBase*> _nics; // para suportar múltiplas NICs
+        template<typename E> friend class NIC;
+        static inline uint8_t _quadrant;
 };

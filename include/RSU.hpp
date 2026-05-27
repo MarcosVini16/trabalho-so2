@@ -7,7 +7,13 @@
 #include <time.h> // Para clock_gettime()
 #include <unistd.h> // Para sleep()
 #include <cstdint> // Para tipos uint
+#include "utils/position.hpp"
 
+#ifdef DEBUG_PTP
+    #define PTP_LOG(x) std::cout << x
+#else
+    #define PTP_LOG(x)
+#endif
 
 extern volatile sig_atomic_t g_stop; // variável global para sinalizar parada total, definida em vehicle_main.cpp
 
@@ -18,11 +24,16 @@ extern volatile sig_atomic_t g_stop; // variável global para sinalizar parada t
  */
 class RSU {
     public:
-        RSU(const std::string& iface)
+        RSU(const std::string& iface, uint8_t quadrant)
             : nic(iface),
               protocol(&nic),
-              communicator(&protocol, Protocol::Address{nic.address(), Ports::RSU})
+              communicator(&protocol, Protocol::Address{nic.address(), Ports::RSU}),
+              _quadrant(quadrant)
         {
+            Protocol::set_quadrant(_quadrant);
+            std::cout << "[RSU] quadrante=" << (int)_quadrant << "\n";
+            std::cout << "[RSU] quadrante(PROTOCOL)=" << (int)Protocol::get_quadrant() << "\n";
+            std::cout << "[RSU] quadrante(positionqdrnt)=" << (int)Position::quadrant() << "\n";
         }
 
         ~RSU() = default;
@@ -56,8 +67,7 @@ class RSU {
                     // Registra o momento de recebimento (T4 para Delay_Resp)
                     timespec receive_time;
                     clock_gettime(CLOCK_REALTIME, &receive_time);
-                    std::cout << "[RSU] receive_time=" << (receive_time.tv_sec * 1000000000ULL + receive_time.tv_nsec) << "\n";
-
+                    PTP_LOG("[RSU] receive_time=" << (receive_time.tv_sec * 1000000000ULL + receive_time.tv_nsec) << "\n");
                     // std::cout << "[RSU] Mensagem recebida do veículo " << msg.src() << "\n";
                     if(msg.size() == sizeof(PTPFrame)) {
                         // std::cout << "[RSU] Enviando resposta de sincronização para " << msg.src() << "\n";
@@ -71,12 +81,12 @@ class RSU {
                                 response_frame.message_type = 1;
                                 clock_gettime(CLOCK_REALTIME, &now);
                                 response_frame.timestamp = (static_cast<uint64_t>(now.tv_sec) * 1000000000) + now.tv_nsec;
-                                std::cout << "[RSU] T1=" << response_frame.timestamp << "\n";
+                                PTP_LOG("[RSU] T1=" << response_frame.timestamp << "\n");
                                 break;
                             case 2:
                                 response_frame.message_type = 3;
                                 response_frame.timestamp = (static_cast<uint64_t>(receive_time.tv_sec) * 1000000000) + receive_time.tv_nsec;
-                                std::cout << "[RSU] T4=" << response_frame.timestamp << "\n";
+                                PTP_LOG("[RSU] T4=" << response_frame.timestamp << "\n");
                                 break;
                             default:
                                 std::cout << "[RSU] Tipo desconhecido: " << (int)ptp->message_type << "\n";
@@ -84,7 +94,7 @@ class RSU {
                         }
                         std::memcpy(response.data(), &response_frame, sizeof(response_frame));
                         response.set_size(sizeof(response_frame));
-                        communicator.send(&response);
+                        communicator.send_to(&response, msg.src());
                     }
                 }
             }
@@ -95,4 +105,5 @@ class RSU {
         NIC<RawSocketEngine> nic; // NIC para comunicação com a rede externa
         Protocol protocol; // Protocolo de comunicação
         Communicator communicator; // Camada de comunicação para enviar/receber mensagem
+        uint8_t _quadrant = 0;
 };

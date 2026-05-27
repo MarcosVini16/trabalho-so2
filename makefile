@@ -16,6 +16,11 @@ SHM_TEST  = build/shm_test
 BUSYBOX_INSTALL = env/initramfs
 # kernel RISC-V pré-compilado
 KERNEL_IMAGE = env/Image
+
+# fontes do kernel para compilar módulos
+KDIR := $(HOME)/linux-6.15.5
+KERNEL_MODULE = kernel/position.ko
+
 # sistema de arquivos empacotado que a VM carrega na inicialização
 INITRAMFS = initramfs.cpio
 
@@ -61,10 +66,19 @@ shm_test: $(SHM_TEST)
 # Cada VM decide qual rodar via /init ou via append na linha de boot.
 # --------------------------------------------------------------------------
 
-initramfs: all
+$(KERNEL_MODULE):
+	@if [ ! -f kernel/position.ko ]; then \
+		rsync -a --exclude='*.ko' --exclude='*.o' kernel/ /tmp/so2_kernel_src/; \
+		make -C $(KDIR) M=/tmp/so2_kernel_src ARCH=riscv CROSS_COMPILE=riscv64-linux-gnu- modules; \
+		cp /tmp/so2_kernel_src/position.ko kernel/; \
+	fi
+
+initramfs: all $(KERNEL_MODULE)
 	cp $(VEHICLE) $(BUSYBOX_INSTALL)/
 	cp $(RSU)     $(BUSYBOX_INSTALL)/
+	cp $(KERNEL_MODULE) $(BUSYBOX_INSTALL)/
 	cd $(BUSYBOX_INSTALL) && find . | cpio -o -H newc > ../../$(INITRAMFS)
+
 
 # --------------------------------------------------------------------------
 # Targets de VM
@@ -75,11 +89,13 @@ initramfs: all
 # MACs: RSU = 00:...:FF, veículos = 00:...:01..04
 
 run: initramfs
-	@echo ">>> subindo RSU em background..."
-	@$(QEMU) $(NETDEV) \
-		-device virtio-net-device,netdev=net0,mac=00:00:00:00:00:FF \
-		--append "root=/dev/ram role=rsu" \
-		> rsu.log 2>&1 &
+	@echo ">>> subindo 4 RSUs em background..."
+	@for i in 0 1 2 3; do \
+		$(QEMU) $(NETDEV) \
+			-device virtio-net-device,netdev=net0,mac=00:00:00:00:00:FC \
+			--append "root=/dev/ram role=rsu quadrant=$$i" \
+			> rsu$$i.log 2>&1 & \
+	done
 	@sleep 1
 	@echo ">>> subindo veículos 1..3 em background..."
 	@for i in 1 2 3; do \
@@ -89,13 +105,12 @@ run: initramfs
 			> vehicle$$i.log 2>&1 & \
 	done
 	@sleep 1
-	@echo ">>> subindo veículo 4 em foreground (Ctrl-A x para sair)"
+	@echo ">>> subindo veículo 4 em foreground"
 	$(QEMU) $(NETDEV) \
 		-device virtio-net-device,netdev=net0,mac=00:00:00:00:00:04 \
 		--append "root=/dev/ram role=vehicle"
 
 # VMs individuais — cada uma em terminal separado
-# Use estes para debug isolado de PTP, abrindo um terminal por VM.
 
 vm_rsu: initramfs
 	$(QEMU) $(NETDEV) \
@@ -123,8 +138,15 @@ vm4: initramfs
 		--append "root=/dev/ram role=vehicle"
 
 # --------------------------------------------------------------------------
+# Target PTP — compila com prints de debug do PTP
+# --------------------------------------------------------------------------
+
+ptp: 
+	$(MAKE) CXXFLAGS="$(CXXFLAGS) -DDEBUG_PTP" run
+
+# --------------------------------------------------------------------------
 clean:
-	rm -rf build $(INITRAMFS) rsu.log vehicle*.log
+	rm -rf build $(INITRAMFS) rsu*.log vehicle*.log
 
 fix_multipass:
 	@echo ">>> corrigindo permissões do Multipass (requer sudo)"

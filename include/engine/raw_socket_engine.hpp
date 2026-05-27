@@ -79,7 +79,7 @@ class RawSocketEngine : public Engine {
 
         Ethernet::Address expected_dst() const override {
             // para comunicação local, esperamos broadcast
-            return Ethernet::Address::BROADCAST();
+            return Ethernet::Address();
         }
     
     protected:

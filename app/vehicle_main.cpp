@@ -10,11 +10,13 @@
 #include <thread>
 #include <cstring>
 #include <string>
+#include <fstream>
 #include "../include/vehicle.hpp"
 #include "../include/components/sensor.hpp"
 #include "../include/components/actuator.hpp"
 #include "../include/components/time_client.hpp"
 #include "../include/utils/ports.hpp"
+#include "../include/utils/stats.hpp"
 
 // ---------------------------------------------------------------------------
 // Sinal de parada total (visível para todos os filhos pós-fork)
@@ -36,30 +38,32 @@ void setup_signals() {
     sigaction(SIGALRM, &sa, nullptr);
 }
 
+Stats g_stats;
+
 // ---------------------------------------------------------------------------
 // Funções de cada processo filho.
 // Cada uma constrói seus objetos APÓS o fork — nunca antes.
 // ---------------------------------------------------------------------------
 
 void run_sensor(key_t key, Ethernet::Address mac, const std::string& iface) {
-    std::cout << "[sensor] pid=" << getpid() << "\n";
+    //std::cout << "[sensor] pid=" << getpid() << "\n";
     Sensor s(Protocol::Address{mac, Ports::SENSOR}, key, mac);
     s.run();
-    std::cout << "[sensor] saindo...\n";
+    //std::cout << "[sensor] saindo...\n";
 }
 
 void run_actuator(key_t key, Ethernet::Address mac, const std::string& iface) {
-    std::cout << "[actuator] pid=" << getpid() << "\n";
+    //std::cout << "[actuator] pid=" << getpid() << "\n";
     Actuator a(Protocol::Address{mac, Ports::ACTUATOR}, key, mac);
     a.run();
-    std::cout << "[actuator] saindo...\n";
+    //std::cout << "[actuator] saindo...\n";
 }
 
 void run_time_client(key_t key, Ethernet::Address mac, const std::string& iface) {
-    std::cout << "[time_client] pid=" << getpid() << "\n";
+    //std::cout << "[time_client] pid=" << getpid() << "\n";
     TimeClient tc(Protocol::Address{mac, Ports::TIME_CLIENT}, key,  mac, iface);
     tc.run();
-    std::cout << "[time_client] saindo...\n";
+    //std::cout << "[time_client] saindo...\n";
 }
 
 // ---------------------------------------------------------------------------
@@ -77,8 +81,8 @@ void run_normal(Gateway& gw) {
             std::memcpy(msg.data(), txt.c_str(), txt.size());
             msg.set_size(txt.size());
             bool ok = gw.send(msg);
-            std::cout << "[gateway/net] enviou '" << txt
-                      << "' ok=" << ok << "\n";
+            std::cout << "[gateway/net] enviou '" << txt << "\n";
+                      //<< "' ok=" << ok << "\n";
             std::this_thread::sleep_for(std::chrono::seconds(2));
         }
         std::cout << "[gateway/net] saindo...\n";
@@ -95,8 +99,8 @@ void run_normal(Gateway& gw) {
             gw.share(msg, Ports::SENSOR);
             gw.share(msg, Ports::ACTUATOR);
             bool ok = gw.share(msg, Ports::POWERTRAIN);
-            std::cout << "[gateway/shm] compartilhou '" << txt
-                      << "' ok=" << ok << "\n";
+            std::cout << "[gateway/shm] compartilhou '" << txt << "\n";
+                      //<< "' ok=" << ok << "\n";
         }
         std::cout << "[gateway/shm] saindo...\n";
     });
@@ -107,7 +111,9 @@ void run_normal(Gateway& gw) {
             size_t sz = msg.size();
             if(sz > 0 && sz <= Message::MAX_SIZE) {
                 std::string txt(static_cast<char*>(msg.data()), sz);
-                std::cout << "[gateway] recebeu: '" << txt << "'\n";
+                std::cout << "[gateway] recebeu de quadrante=" 
+                      << (int)msg.origin() << "\n";
+                      //<< " msg='" << txt << "'\n";
             }
         }
     }
@@ -123,6 +129,17 @@ void run_normal(Gateway& gw) {
 // ---------------------------------------------------------------------------
 
 int main(int argc, char* argv[]) {
+
+    // no início do main, antes de tudo
+    std::ifstream f("/proc/position");
+    if (f) {
+        unsigned int q;
+        f >> q;
+        std::cout << "[main] quadrante inicial: " << q << "\n";
+    } else {
+        std::cerr << "[main] ERRO: /proc/position nao encontrado\n";
+    }
+
     std::cout << "=== Vehicle main (com TimeClient) ===\n";
     setup_signals();
 
