@@ -3,6 +3,7 @@
 #include <cstring>
 #include <cstddef>
 #include "ethernet.hpp"
+#include "utils/type_code.hpp"
 
 /*
  * Classe que representa uma mensagem genérica a ser enviada ou recebida.
@@ -21,7 +22,7 @@ class Message {
     }
 
     // construtor que cria com conteúdo
-    Message(Ethernet::Address src, const void* data, unsigned int size, uint64_t ts) : _size(size), timestamp(ts) {
+    Message(Ethernet::Address src, const void* data, unsigned int size, uint64_t ts, TypeCode tc = TypeCode::VELOCITY) : _size(size), timestamp(ts), type_code(tc) {
         std::memcpy(_data, data, size);
         _src = src;
     }
@@ -55,5 +56,5 @@ class Message {
     unsigned int _size;
     Ethernet::Address _src; // Para armazenar o endereço de origem (caso seja necessário para respostas)
     uint64_t timestamp; // Momento de envio da mensagem
-    
+    TypeCode type_code; // Tipo de dado (pode ser usado para interpretar o conteúdo da mensagem)
 };

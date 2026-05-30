@@ -54,6 +54,7 @@ class Protocol
             uint16_t dst_port;
             uint16_t payload_size;
             uint8_t src_quadrant;
+            uint8_t type; // código equivalente ao TypeCode da mensagem
         } __attribute__((packed));
 
         static const unsigned int MTU = NICBase::MTU - sizeof(Header);
