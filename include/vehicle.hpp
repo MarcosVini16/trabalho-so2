@@ -49,6 +49,5 @@ private:
 
     Gateway _gateway;
     key_t   _key;
-    key_t clock_key; // chave para o segmento de memória compartilhada do relógio
     std::vector<std::unique_ptr<Component>> _components;
 };
