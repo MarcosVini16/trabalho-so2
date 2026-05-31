@@ -6,6 +6,8 @@
 #include "../communicator.hpp"
 #include <time.h>
 #include <cstdint>
+#include <unordered_map>
+#include <unordered_set>
 
 extern volatile sig_atomic_t g_stop; // variável global para sinalizar parada total, definida em vehicle_main.cpp
 
@@ -73,5 +75,7 @@ protected:
     NIC<ShmEngine> nic; // NIC para comunicação com outros componentes locais.
     Protocol protocol; // Protocolo de comunicação
     Communicator communicator; // Camada de comunicação (mais alto nível) para enviar/receber mensagens
-    key_t clock_key; // chave para o segmento de memória compartilhada do relógio (pode ser útil para componentes que precisam acessar o relógio sincronizado)
+    std::unordered_map<TypeCode, uint64_t> interest_periods; // período que componente deseja receber cada tipo de dado (em microsegundos)
+    std::unordered_map<TypeCode, uint64_t> response_periods; // período que outros desejam receber cado dado que este componente produz (em microsegundos)
+    std::unordered_set<TypeCode>  produced_types; // tipos de dados que este componente produz
 };
