@@ -4,6 +4,7 @@
 #include "../engine/shm_engine.hpp"
 #include "../protocol.hpp"
 #include "../communicator.hpp"
+#include "../utils/type_code.hpp"
 #include <time.h>
 #include <cstdint>
 #include <unordered_map>
@@ -18,8 +19,11 @@ extern volatile sig_atomic_t g_stop; // variável global para sinalizar parada t
 class Component {
 public:
 
-    Component(Protocol::Address address, key_t key, Ethernet::Address mac)
-        : nic(key, mac), protocol(&nic), communicator(&protocol, address) {
+    using TypeMap = std::unordered_map<TypeCode, uint64_t>;
+    using TypeSet = std::unordered_set<TypeCode>;
+
+    Component(Protocol::Address address, key_t key, Ethernet::Address mac, TypeMap interest_periods = {}, TypeSet produced_types = {})
+        : nic(key, mac), protocol(&nic), communicator(&protocol, address), interest_periods(interest_periods), produced_types(produced_types) {
     };
 
     ~Component() = default;
@@ -75,7 +79,7 @@ protected:
     NIC<ShmEngine> nic; // NIC para comunicação com outros componentes locais.
     Protocol protocol; // Protocolo de comunicação
     Communicator communicator; // Camada de comunicação (mais alto nível) para enviar/receber mensagens
-    std::unordered_map<TypeCode, uint64_t> interest_periods; // período que componente deseja receber cada tipo de dado (em microsegundos)
-    std::unordered_map<TypeCode, uint64_t> response_periods; // período que outros desejam receber cado dado que este componente produz (em microsegundos)
-    std::unordered_set<TypeCode>  produced_types; // tipos de dados que este componente produz
+    TypeMap interest_periods; // período que componente deseja receber cada tipo de dado (em microsegundos)
+    TypeMap response_periods = {}; // período que deve enviar cada dado - preenchido conforme interesses recebidos
+    TypeSet produced_types; // tipos de dados que este componente produz
 };
