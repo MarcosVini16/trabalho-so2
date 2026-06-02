@@ -24,16 +24,22 @@ KERNEL_MODULE = kernel/position.ko
 # sistema de arquivos empacotado que a VM carrega na inicialização
 INITRAMFS = initramfs.cpio
 
-# parâmetros comuns do QEMU
-QEMU = qemu-system-riscv64 -m 128M -M virt -nographic \
-       -kernel $(KERNEL_IMAGE) -initrd $(INITRAMFS) \
-       --append "root=/dev/ram"
+# Detecta se o binário tem extensões ISA além de rv64gc (V, B, Zba, Zbb, Zbs).
+# Toolchains de Ubuntu ARM64 (rodando em Mac/UTM) e versões recentes de GCC
+# podem gerar binários com essas extensões via libc estática. O QEMU virt
+# padrão NÃO emula isso, causando SIGILL. Aqui detectamos e habilitamos o
+# CPU permissivo automaticamente.
+QEMU_CPU := -cpu rv64,v=true,vext_spec=v1.0,zba=true,zbb=true,zbs=true,zfh=true,zfhmin=true,zicbom=true,zicboz=true,zicbop=true,zicond=true,zihintntl=true,zihintpause=true,zfa=true,zca=true,zcb=true,zcd=true
+
+# parâmetros comuns do QEMU (sem --append; cada target define o seu)
+QEMU = qemu-system-riscv64 -m 128M -M virt -nographic $(QEMU_CPU) \
+       -kernel $(KERNEL_IMAGE) -initrd $(INITRAMFS)
 
 # rede virtual compartilhada por todas as VMs (mesma VLAN/mcast)
 NETDEV = -netdev socket,id=net0,mcast=230.0.0.1:1234
 
-.PHONY: all clean initramfs run shm_test \
-        vm1 vm2 vm3 vm4 vm_rsu
+.PHONY: all clean initramfs run shm_test ptp \
+        vm1 vm2 vm3 vm4 vm_rsu show-cpu
 
 # --------------------------------------------------------------------------
 # Targets de compilação
@@ -52,7 +58,6 @@ $(RSU): app/rsu_main.cpp
 	$(CXX) $(CXXFLAGS) $^ -o $@ $(LDFLAGS)
 
 # teste de shm — compilado para a arquitetura nativa do host (sem cross)
-# útil para validar ShmEngine sem precisar subir QEMU
 $(SHM_TEST): app/shm_test.cpp
 	@mkdir -p build
 	g++ -std=c++20 -Wall -Wextra -Iinclude -pthread $^ -o $@ -lpthread
@@ -61,9 +66,17 @@ shm_test: $(SHM_TEST)
 	@echo ">>> executando shm_test (requer permissão para IPC SysV)"
 	sudo ./$(SHM_TEST)
 
+# Diagnóstico: mostra qual -cpu o QEMU vai usar
+show-cpu: all
+	@echo "QEMU_CPU = $(QEMU_CPU)"
+	@if [ -z "$(QEMU_CPU)" ]; then \
+		echo "(binário enxuto, CPU default do QEMU funciona)"; \
+	else \
+		echo "(binário tem extensões V/B detectadas — habilitando emulação)"; \
+	fi
+
 # --------------------------------------------------------------------------
-# Initramfs — empacota AMBOS os binários (vehicle e rsu)
-# Cada VM decide qual rodar via /init ou via append na linha de boot.
+# Initramfs — empacota binários + módulo de kernel
 # --------------------------------------------------------------------------
 
 $(KERNEL_MODULE):
@@ -79,23 +92,17 @@ initramfs: all $(KERNEL_MODULE)
 	cp $(KERNEL_MODULE) $(BUSYBOX_INSTALL)/
 	cd $(BUSYBOX_INSTALL) && find . | cpio -o -H newc > ../../$(INITRAMFS)
 
-
 # --------------------------------------------------------------------------
 # Targets de VM
 # --------------------------------------------------------------------------
-# Topologia padrão: 1 RSU + 4 veículos = 5 VMs.
-# A RSU sobe primeiro em background, depois os veículos.
-# O último veículo fica em foreground para você ver os logs.
-# MACs: RSU = 00:...:FF, veículos = 00:...:01..04
 
 run: initramfs
-	@echo ">>> subindo 4 RSUs em background..."
-	@for i in 0 1 2 3; do \
-		$(QEMU) $(NETDEV) \
-			-device virtio-net-device,netdev=net0,mac=00:00:00:00:00:FC \
-			--append "root=/dev/ram role=rsu quadrant=$$i" \
-			> rsu$$i.log 2>&1 & \
-	done
+	@echo ">>> QEMU_CPU = $(QEMU_CPU)"
+	@echo ">>> subindo 1 RSU em background..."
+	@$(QEMU) $(NETDEV) \
+		-device virtio-net-device,netdev=net0,mac=00:00:00:00:00:FF \
+		--append "root=/dev/ram role=rsu" \
+		> rsu.log 2>&1 &
 	@sleep 1
 	@echo ">>> subindo veículos 1..3 em background..."
 	@for i in 1 2 3; do \
@@ -141,14 +148,9 @@ vm4: initramfs
 # Target PTP — compila com prints de debug do PTP
 # --------------------------------------------------------------------------
 
-ptp: 
+ptp:
 	$(MAKE) CXXFLAGS="$(CXXFLAGS) -DDEBUG_PTP" run
 
 # --------------------------------------------------------------------------
 clean:
 	rm -rf build $(INITRAMFS) rsu*.log vehicle*.log
-
-fix_multipass:
-	@echo ">>> corrigindo permissões do Multipass (requer sudo)"
-	@chmod -R 755 ~/trabalho-so2
-	@sudo chown -R ubuntu:ubuntu ~/trabalho-so2

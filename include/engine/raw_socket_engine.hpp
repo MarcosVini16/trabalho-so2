@@ -85,14 +85,12 @@ class RawSocketEngine : public Engine {
     protected:
         int _send(const void* buf, size_t len) override {
             auto* frame = reinterpret_cast<const Ethernet::Frame*>(buf);
-            //std::cout << "[engine] enviando frame EtherType=0x" 
-            //        << std::hex << ntohs(frame->type) 
-            //        << " len=" << std::dec << len << "\n";
+            
             // Set up the socket address structure for sending (broadcast)
             struct sockaddr_ll addr{};
             addr.sll_family  = AF_PACKET;
             addr.sll_protocol = htons(ETH_P_ALL);
-            // Why 0 and not _ifindex? Because we want to send to the broadcast address, so we set the interface index to 0 and specify the destination MAC address as broadcast.
+            
             addr.sll_ifindex = _ifindex; 
             addr.sll_halen   = 6;
             std::memset(addr.sll_addr, 0xff, 6);   // broadcast
