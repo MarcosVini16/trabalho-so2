@@ -5,6 +5,7 @@
 #include <mutex>
 #include <arpa/inet.h> // for htons and ntohs
 #include <unistd.h> // for getpid
+#include <vector> // para o pool de buffers
 #include "protocol.hpp"
 #include "../utils/position.hpp"
 /*
