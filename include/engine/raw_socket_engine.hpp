@@ -84,7 +84,6 @@ class RawSocketEngine : public Engine {
     
     protected:
         int _send(const void* buf, size_t len) override {
-            auto* frame = reinterpret_cast<const Ethernet::Frame*>(buf);
             
             // Set up the socket address structure for sending (broadcast)
             struct sockaddr_ll addr{};
