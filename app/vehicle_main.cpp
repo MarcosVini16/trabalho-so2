@@ -80,7 +80,7 @@ void run_normal(Gateway& gw) {
             std::string txt = "rede-msg-" + std::to_string(count++);
             std::memcpy(msg.data(), txt.c_str(), txt.size());
             msg.set_size(txt.size());
-            bool ok = gw.send(msg);
+            gw.send(msg);
             std::cout << "[gateway/net] enviou '" << txt << "\n";
                       //<< "' ok=" << ok << "\n";
             std::this_thread::sleep_for(std::chrono::seconds(2));
@@ -98,7 +98,7 @@ void run_normal(Gateway& gw) {
             msg.set_size(txt.size());
             gw.share(msg, Ports::SENSOR);
             gw.share(msg, Ports::ACTUATOR);
-            bool ok = gw.share(msg, Ports::POWERTRAIN);
+            gw.share(msg, Ports::POWERTRAIN);
             std::cout << "[gateway/shm] compartilhou '" << txt << "\n";
                       //<< "' ok=" << ok << "\n";
         }
