@@ -76,15 +76,12 @@ class Protocol
         }
 
         ~Protocol() {
-            std::cout << "[protocol] destrutor iniciado\n";
             // copia a lista antes de iterar para evitar invalidar o iterador
             // auto nics_copy = _nics;
             // for(auto* nic : nics_copy) {
             //     nic->detach(this, PROTO);
             // }
             // _nics.clear();
-            //std::cout << "[protocol] destrutor concluido\n";
-            std::cout << "[protocol] destrutor concluido\n";
         }
 
         // Multiple NICs
@@ -121,14 +118,8 @@ class Protocol
                 pkt->header.src_port = htons(src.port);    // extrai a porta
                 pkt->header.dst_port = htons(dst.port);
                 
-                uint8_t pos = get_quadrant();
-                if (pos == 255) {
-                    pkt->header.src_quadrant = Position::quadrant();
-                    //std::cout <<"POSITON QUADRANT=" << (int)Position::quadrant() << "\n";;
-                } else {
-                    pkt->header.src_quadrant = pos;
-                    //std::cout <<"pos=" << (int)pos << "\n";
-                }
+                uint8_t my_q = (_quadrant != 255) ? _quadrant : Position::quadrant();
+                pkt->header.src_quadrant = my_q;
                 pkt->header.payload_size = htons(static_cast<uint16_t>(size));
 
                 std::memcpy(pkt->data, data, size);
@@ -167,20 +158,10 @@ class Protocol
         }
 
         static void set_quadrant(uint8_t q) { _quadrant = q & 0x3; }
-        static uint8_t get_quadrant() { return _quadrant; }
 
         static bool accept(uint8_t src_quadrant) {
-
-            uint8_t pos = get_quadrant();
-            if (pos == 255) {
-                std::cout << "[protocol] meu Q=" << (int)Position::quadrant() << "\n";
-                std::cout << "[protocol] quem enviou" << (int)src_quadrant << "\n";
-                return src_quadrant == Position::quadrant();
-            }
-            
-            std::cout << "[protocol] meu Q=" << (int)pos << "\n";
-            std::cout << "[protocol] quem enviou" << (int)src_quadrant << "\n";
-            return src_quadrant == pos;
+            uint8_t my_q = (_quadrant != 255) ? _quadrant : Position::quadrant();
+            return src_quadrant == my_q;
         }
 
         static bool verifica_quadrante(Ethernet::Frame* frame) {

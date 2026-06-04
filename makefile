@@ -89,27 +89,29 @@ initramfs: all $(KERNEL_MODULE)
 # MACs: RSU = 00:...:FF, veículos = 00:...:01..04
 
 run: initramfs
+	@mkdir -p logs/rsu logs/vehicle
 	@echo ">>> subindo 4 RSUs em background..."
 	@for i in 0 1 2 3; do \
 		$(QEMU) $(NETDEV) \
 			-device virtio-net-device,netdev=net0,mac=00:00:00:00:00:FC \
 			--append "root=/dev/ram role=rsu quadrant=$$i" \
-			> rsu$$i.log 2>&1 & \
+			> logs/rsu/rsu$$i.log 2>&1 & \
 	done
 	@sleep 1
-	@echo ">>> subindo veículos 1..3 em background..."
-	@for i in 1 2 3; do \
+	@echo ">>> subindo veículos 2..4 em background..."
+	@for i in 2 3 4; do \
 		$(QEMU) $(NETDEV) \
 			-device virtio-net-device,netdev=net0,mac=00:00:00:00:00:0$$i \
 			--append "root=/dev/ram role=vehicle" \
-			> vehicle$$i.log 2>&1 & \
+			> logs/vehicle/vehicle$$i.log 2>&1 & \
 	done
 	@sleep 1
-	@echo ">>> subindo veículo 4 em foreground"
+	@echo ">>> subindo veículo 1 em foreground (Ctrl-A x para sair)"
 	$(QEMU) $(NETDEV) \
-		-device virtio-net-device,netdev=net0,mac=00:00:00:00:00:04 \
-		--append "root=/dev/ram role=vehicle"
-
+		-device virtio-net-device,netdev=net0,mac=00:00:00:00:00:01 \
+		--append "root=/dev/ram role=vehicle" \
+		| tee logs/vehicle/vehicle1.log
+		
 # VMs individuais — cada uma em terminal separado
 
 vm_rsu: initramfs
@@ -146,7 +148,7 @@ ptp:
 
 # --------------------------------------------------------------------------
 clean:
-	rm -rf build $(INITRAMFS) rsu*.log vehicle*.log
+	rm -rf build $(INITRAMFS) logs/rsu/*.log logs/vehicle/*.log
 
 fix_multipass:
 	@echo ">>> corrigindo permissões do Multipass (requer sudo)"

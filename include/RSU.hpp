@@ -31,9 +31,6 @@ class RSU {
               _quadrant(quadrant)
         {
             Protocol::set_quadrant(_quadrant);
-            std::cout << "[RSU] quadrante=" << (int)_quadrant << "\n";
-            std::cout << "[RSU] quadrante(PROTOCOL)=" << (int)Protocol::get_quadrant() << "\n";
-            std::cout << "[RSU] quadrante(positionqdrnt)=" << (int)Position::quadrant() << "\n";
         }
 
         ~RSU() = default;

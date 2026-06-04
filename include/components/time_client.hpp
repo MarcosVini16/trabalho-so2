@@ -11,6 +11,7 @@
 #include <cstring>
 #include <sys/ipc.h>
 #include <sys/shm.h>
+#include <iomanip>
 
 #ifdef DEBUG_PTP
     #define PTP_LOG(x) std::cout << x
@@ -97,8 +98,8 @@ public:
         {
             if (!receive(response))
             {
-                std::cerr
-                    << "[TimeClient] Timeout Sync\n";
+                //std::cerr
+                    //<< "[TimeClient] Timeout Sync\n";
 
                 g_stats.ptp_sync_timeout++;
                 return;
@@ -157,8 +158,8 @@ public:
         {
             if (!receive(delay_resp))
             {
-                std::cerr
-                    << "[TimeClient] Timeout Delay_Resp\n";
+                //std::cerr
+                    //<< "[TimeClient] Timeout Delay_Resp\n";
 
                 g_stats.ptp_sync_timeout++;
                 return;
@@ -193,12 +194,6 @@ public:
         g_stats.last_offset_ns = offset;
         g_stats.ptp_sync_ok++;
 
-        // ============================================================
-        // PLL simples
-        //
-        // aplica apenas fração do erro
-        // ============================================================
-
         clock_gettime(CLOCK_REALTIME, &ts);
 
         int64_t now_ns = ns(ts);
@@ -230,26 +225,47 @@ public:
         }
         
         PTP_LOG("[TimeClient] correction=" << correction << "\n");
-        std::cout << "[TimeClient] Sincronização finalizada (RSU:" 
-                  << (int)delay_resp.origin() << ")\n";
+        //std::cout << "[TimeClient] Sincronização finalizada (RSU:" 
+                  //<< (int)delay_resp.origin() << ")\n";
     }
 
     void run()
     {   
+        // pega o quadrante
+        uint8_t last_q = Position::quadrant();
+
         // o último offset é guardado para o algoritmo de intervalo adaptativo
         int64_t last_offset = 0;
         // começa em 500ms
         int interval_ms = 500;
 
 
-        while (!g_stop)
-        {
-            std::cout << "MEU QUADRANTE: " << (int)Position::quadrant() << "\n";
+        while(!g_stop)
+        {   
+            // quadrante atual
+            uint8_t current_q = Position::quadrant();
+
+            // rastreia posição
+            if (g_stats.first_quadrant == 0xFF) g_stats.first_quadrant = current_q;
+            g_stats.last_quadrant = current_q;
+            g_stats.q_count[current_q & 0x3]++;
+
+            // se trocou de quadrante:
+            if (current_q != last_q) {
+                // atualiza o quadrante atual
+                last_q = current_q;
+                // sincroniza imediatamente (pula o sleep)
+                syncTime();
+                continue; // continue pula o sleep
+            }
+
             syncTime();
+
             // calcula a variação do offset
             int64_t delta = std::abs(g_stats.last_offset_ns - last_offset);
             last_offset = g_stats.last_offset_ns;
 
+            // ========== MUDAR AQUI O ALGORITMO DO INTERVALO DO PTP ==============
             // calcula o intervalo baseado na volatilidade
             if (delta < 1000000LL) {
                 interval_ms = std::min(interval_ms * 2, 1000);
@@ -261,18 +277,30 @@ public:
 
         }
 
-        std::cout << "\n====== PTP STATS ======\n";
+        // PTP STATS
+        std::cout << "\n======= PTP STATS ======\n";
         std::cout << "PTP sync OK: " << g_stats.ptp_sync_ok << "\n";
         std::cout << "PTP timeouts: " << g_stats.ptp_sync_timeout << "\n";
         std::cout << "Ultimo offset: " << g_stats.last_offset_ns << " ns\n";
-        std::cout << "=======================\n";
+        std::cout << "========================\n";
+
+        // POSITION STATS
+        uint32_t total = g_stats.q_count[0] + g_stats.q_count[1]
+                    + g_stats.q_count[2] + g_stats.q_count[3];
+        std::cout << "==== POSITION STATS ====\n";
+        std::cout << "First Quadrant: " << (int)g_stats.first_quadrant << "\n";
+        std::cout << "Last Quadrant:  " << (int)g_stats.last_quadrant  << "\n";
+        for (int i = 0; i < 4; i++) {
+            float pct = total > 0 ? (g_stats.q_count[i] * 100.0f / total) : 0;
+            std::cout << "Q" << i << ": " << std::fixed << std::setprecision(1) << pct << "%\n";
+        }
+        std::cout << "========================\n";
     }
 
 private:
-    NIC<RawSocketEngine> rs_nic;
 
+    NIC<RawSocketEngine> rs_nic;
     uint32_t _seq;
     uint32_t _seq_base;
-
     bool _synced = false;
 };

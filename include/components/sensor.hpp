@@ -6,7 +6,7 @@ public:
     Sensor(Protocol::Address address, key_t key, Ethernet::Address mac) : Component(address, key, mac) {}
 
     void run() {
-        std::cout << "[Sensor] Rodando com endereço " << communicator.address() << "\n";
+        //std::cout << "[Sensor] Rodando com endereço " << communicator.address() << "\n";
         while(!g_stop) {
             Message msg;
             if(receive(msg)) {
