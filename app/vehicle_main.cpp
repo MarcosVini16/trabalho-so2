@@ -32,7 +32,7 @@ void setup_signals() {
     struct sigaction sa{};
     sa.sa_handler = on_stop;
     sigemptyset(&sa.sa_mask);
-    sa.sa_flags = 0;
+    sa.sa_flags = SA_RESTART;
     sigaction(SIGINT,  &sa, nullptr);
     sigaction(SIGTERM, &sa, nullptr);
     sigaction(SIGALRM, &sa, nullptr);
@@ -47,23 +47,30 @@ Stats g_stats;
 
 void run_sensor(key_t key, Ethernet::Address mac, const std::string& iface) {
     //std::cout << "[sensor] pid=" << getpid() << "\n";
+    std::cout << "[sensor] pid=" << getpid() << " iniciando\n";
     Sensor s(Protocol::Address{mac, Ports::SENSOR}, key, mac);
     s.run();
+    std::cout << "[sensor] pid=" << getpid() << " run() terminou\n";
     //std::cout << "[sensor] saindo...\n";
 }
 
 void run_actuator(key_t key, Ethernet::Address mac, const std::string& iface) {
     //std::cout << "[actuator] pid=" << getpid() << "\n";
+    std::cout << "[actuator] pid=" << getpid() << " iniciando\n";
     Actuator a(Protocol::Address{mac, Ports::ACTUATOR}, key, mac);
     a.run();
+    std::cout << "[actuator] pid=" << getpid() << " run() terminou\n";
     //std::cout << "[actuator] saindo...\n";
 }
 
 void run_time_client(key_t key, Ethernet::Address mac, const std::string& iface) {
     //std::cout << "[time_client] pid=" << getpid() << "\n";
+    std::cout << "[tc] pid=" << getpid() << " iniciando\n";
     TimeClient tc(Protocol::Address{mac, Ports::TIME_CLIENT}, key,  mac, iface);
     tc.run();
+    std::cout << "[tc] pid=" << getpid() << " run() terminou\n";
     //std::cout << "[time_client] saindo...\n";
+    std::cout << "[tc] pid=" << getpid() << " saindo\n";
 }
 
 // ---------------------------------------------------------------------------
@@ -206,13 +213,15 @@ int main(int argc, char* argv[]) {
     g_stop = 1;
     //std::cout << "[main] aguardando filhos terminarem...\n";
 
+    std::cout << "[main] enviando SIGTERM para filhos\n";
     for(pid_t pid : children)
         kill(pid, SIGTERM);
 
+    std::cout << "[main] aguardando filhos...\n";
     for(pid_t pid : children)
         waitpid(pid, nullptr, 0);
-
-    //std::cout << "[main] todos os filhos saíram. Desligando VM.\n";
+    
+    std::cout << "[main] chamando reboot\n";
     sync();
     reboot(RB_POWER_OFF);
     return 0; // nunca alcançado

@@ -58,10 +58,19 @@ class RawSocketEngine : public Engine {
         ~RawSocketEngine() {
             //std::cout << "[raw] iniciando destrutor\n";
             _running = false;
+            shutdown(_fd, SHUT_RDWR); // interrompe recvfrom imediatamente
             close(_fd);         // fecha o socket para interromper o recv
             if(_thread.joinable())
                 _thread.join();
             //std::cout << "[raw] processo " << getpid() << " saiu\n";
+        }
+
+        void stop() {
+            _running = false;
+            shutdown(_fd, SHUT_RDWR);
+            close(_fd);
+            if (_thread.joinable())
+                _thread.join();
         }
 
         Ethernet::Address read_address() {

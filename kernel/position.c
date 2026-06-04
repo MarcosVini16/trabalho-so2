@@ -12,6 +12,10 @@
 
 static struct proc_dir_entry *proc_entry;
 static uint8_t quadrante = 0;
+
+module_param(quadrante, byte, 0444);
+MODULE_PARM_DESC(quadrante, "Quadrante inicial (0-3)");
+
 static struct timer_list meu_timer;
 
 static void timer_callback(struct timer_list *t)

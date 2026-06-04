@@ -30,6 +30,12 @@ public:
         }
     }
 
+    ~NIC() {
+        if constexpr (requires { this->stop(); }) {
+            this->stop();
+        }
+    }
+
     int send(Buffer* buf) override {
         return E::_send(buf->frame(), buf->size());
     }

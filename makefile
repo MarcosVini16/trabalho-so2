@@ -98,18 +98,23 @@ run: initramfs
 			> logs/rsu/rsu$$i.log 2>&1 & \
 	done
 	@sleep 1
-	@echo ">>> subindo veículos 2..4 em background..."
-	@for i in 2 3 4; do \
-		$(QEMU) $(NETDEV) \
-			-device virtio-net-device,netdev=net0,mac=00:00:00:00:00:0$$i \
-			--append "root=/dev/ram role=vehicle" \
-			> logs/vehicle/vehicle$$i.log 2>&1 & \
+	@echo ">>> subindo 19 veículos em background (5 por quadrante)..."
+	@for q in 0 1 2 3; do \
+		for i in $$(seq 1 5); do \
+			n=$$(($$q * 5 + $$i)); \
+			if [ $$n -eq 1 ]; then continue; fi; \
+			mac=$$(printf '00:00:00:00:00:%02x' $$n); \
+			$(QEMU) $(NETDEV) \
+				-device virtio-net-device,netdev=net0,mac=$$mac \
+				--append "root=/dev/ram role=vehicle quadrant=$$q" \
+				> logs/vehicle/vehicle$$n.log 2>&1 & \
+		done; \
 	done
 	@sleep 1
 	@echo ">>> subindo veículo 1 em foreground (Ctrl-A x para sair)"
 	$(QEMU) $(NETDEV) \
 		-device virtio-net-device,netdev=net0,mac=00:00:00:00:00:01 \
-		--append "root=/dev/ram role=vehicle" \
+		--append "root=/dev/ram role=vehicle quadrant=0" \
 		| tee logs/vehicle/vehicle1.log
 		
 # VMs individuais — cada uma em terminal separado

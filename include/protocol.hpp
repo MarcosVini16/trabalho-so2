@@ -77,11 +77,11 @@ class Protocol
 
         ~Protocol() {
             // copia a lista antes de iterar para evitar invalidar o iterador
-            // auto nics_copy = _nics;
-            // for(auto* nic : nics_copy) {
-            //     nic->detach(this, PROTO);
-            // }
-            // _nics.clear();
+            auto nics_copy = _nics;
+            for(auto* nic : nics_copy) {
+                nic->detach(this, PROTO);
+            }
+            _nics.clear();
         }
 
         // Multiple NICs

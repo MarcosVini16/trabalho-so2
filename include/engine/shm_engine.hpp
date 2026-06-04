@@ -92,7 +92,7 @@ public:
 
         shmdt(_ch);
 
-        //std::cout << "[shm] processo " << getpid() << " saiu\n";
+        std::cout << "[shm] processo " << getpid() << " saiu\n";
     }
 
     void _handle(void* buf, size_t len) {

@@ -9,5 +9,6 @@ rita:
 
 ?:
 - atualizar os diagramas
-- passar os testes do PTP da main pra algum arquivo de testes separado 
-- refazer os testes RTT (intra e entre VMs)
+- requisitar instantaneamente o ptp ao mudar o quadrante
+- fazer o ptp com intervalo variável
+- acelerar o modulo de kernel

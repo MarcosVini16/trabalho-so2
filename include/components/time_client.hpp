@@ -48,6 +48,10 @@ public:
         protocol.attach_nic(&rs_nic);
     }
 
+    ~TimeClient() {
+        protocol.detach_nic(&rs_nic);
+    }
+
     void syncTime() 
     {
 
