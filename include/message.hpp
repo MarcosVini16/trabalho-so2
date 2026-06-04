@@ -48,6 +48,12 @@ class Message {
     uint8_t origin() const { return _origin & 0x3; }
     void set_origin(uint8_t q) { _origin = q & 0x3; }
 
+    uint32_t data_type() const { return data_type; }
+    void set_data_type(uint32_t t) { data_type = t; }
+
+    uint8_t msg_type() const { return _msg_type; } 
+    void set_msg_type(uint8_t t) { _msg_type = t; }
+
     private:
 
     uint8_t _origin = 0;
@@ -55,5 +61,7 @@ class Message {
     unsigned int _size;
     Ethernet::Address _src; // Para armazenar o endereço de origem (caso seja necessário para respostas)
     uint64_t timestamp; // Momento de envio da mensagem
+    uint32_t data_type; // Campo para indicar o tipo de dado (Unit Code do SmartData), se necessário para processamento posterior
+    uint8_t _msg_type;   // Campo para indicar o tipo de mensagem (0 = Interest, 1 = Response, 2 = PTP), se necessário para processamento posterior
     
 };
