@@ -6,6 +6,9 @@
  */
 class SmartData {
 public:
+
+    virtual start() = 0;
+    virtual stop() = 0;
     /*
      * Codificação de unidades inspirada no IEEE 1451 e no Smart Data do EPOS.
      *
@@ -21,7 +24,6 @@ public:
      *   MOD   = 0 (sempre DIR)      2 bits
      *   exp+4 = expoente + 4        3 bits cada (expoente válido: -4 a +3)
      */
-
     class Unit {
         
     public:
@@ -107,6 +109,6 @@ public:
             Ratio                   = SIUnit<LOG_DIV, -4,     -4,     -4,     -4,     -4,     -4,     -4,     -4,     -4>::UNIT, // não é SI, um valor adimensional (pode ser > 1)
             Percent                 = SIUnit<LOG_DIV, -4,     -4,     -4,     -4,     -4,     -4,     -4,     -4,     -3>::UNIT, // não é SI, um valor adimensional representando uma porcentagem < 1 (1% = 0.01) - pode ser útil para combustível, bateria, etc.
         };
-        
+
     }__attribute__((packed));
 };

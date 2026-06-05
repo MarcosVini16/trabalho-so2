@@ -1,10 +1,13 @@
+#pragma once
 #include "smart_data.hpp"
 #include "../communicator.hpp"
-#include "../observe/conditional.hpp"
+#include "../protocol.hpp"
 #include "../message.hpp"
 #include "../utils/position.hpp"
 #include <iostream>
 #include <time.h>
+#include <thread>
+#include <atomic>
 
 template<typename _Unit>
 class InterestedSmartData : public SmartData {
@@ -12,32 +15,34 @@ public:
     static const unsigned long UNIT = _Unit::UNIT;
     // typedef typename Unit::Get<UNIT>::Type Value; (pode ser útil para acessar o tipo de dado numérico correspondente à unidade, se necessário)
 public:
-    InterestedSmartData(Communicator* comm, uint64_t period) : _comm(comm), _period(period) {
+    InterestedSmartData(Protocol* channel, Protocol::Address addr, uint64_t period) : communicator(channel, addr), _period(period) {
         // O SmartData se registra como observador na porta associada à unidade de interesse para receber os dados
-        attach_comm(comm, _Unit::PORT);
     }
 
-    void attach_comm(Communicator* comm, Protocol::Port port) {
-        // port deve ser a porta associada a este SmartData (definida pelo Unit)
-        comm->attach(this, port);
+    /*
+     * Método para iniciar o processamento do SmartData, que pode incluir a criação de threads, timers, etc.
+     * Neste caso, inicia uma thread que ficará responsável por enviar Interests periodicamente e processar as respostas recebidas.
+     */
+    void start() override {
+        _thread = std::thread(&InterestedSmartData::run, this);
+    }
+
+    void stop() override {
+        _running = false; // Sinaliza para a thread parar
+        if (_thread.joinable()) {
+            _thread.join(); // Aguarda a thread terminar
+        }
     }
 
     void run() {
-        // Este método pode ser chamado para iniciar o processamento do SmartData, se necessário
-        // Por exemplo, pode ser usado para configurar timers, iniciar threads, etc.
-        // Pseudocódigo:
-        // Primeiramente, envia Interesse inicial em broadcast
-        // Aí, em while true, fica esperando por Responses
-        // Se ficar um tempo sem receber Response, pode reenviar o Interest
-        // O receive do Communicator naturalmente desbloqueia depois de muito tempo travado
         timespec ts{};
         send_interest();
-        while (true) {
+        while (_running) {
             Message msg;
-            if (_comm->receive(&msg)) {
+            if (communicator.receive(&msg)) {
                 if (msg.msg_type() == 1 /* Response */) {
                     clock_gettime(CLOCK_REALTIME, &ts);
-                    _last_response_time = ts.tv_sec * 1000000000ull + ts.tv_nsec;
+                    _last_response_time = ts.tv_sec * 1000000000ull + ts.tv_nsec; // Atualiza o timestamp do último Response recebido (em nanosegundos)
                     std::cout << "Recebi mensagem para a unidade " << UNIT << " no tempo " << _last_response_time << " ns\n";
                 }
             } else {
@@ -62,11 +67,13 @@ public:
         interest_msg.set_msg_type(0); // 0 = Interest
         interest_msg.set_data_type(UNIT); // Tipo de dado enviado é o Unit Code do SmartData
         std::memcpy(interest_msg.data(), &_period, sizeof(uint64_t)); // Copia o período para o payload da mensagem
-        _comm->send(&interest_msg); // Envia em broadcast
+        communicator.send(&interest_msg); // Envia em broadcast
     }
 
 private:
-    Communicator* _comm;
+    Communicator communicator;
     uint64_t _period; // período de interesse para este SmartData
     uint64_t _last_response_time; // timestamp do último Response recebido, para controle de timeout e reenvio de Interest
+    std::thread _thread; // thread para rodar o loop de recebimento e controle de timeout
+    std::atomic<bool> _running{true}; // flag para controle de execução da thread, se necessário
 };

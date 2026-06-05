@@ -1,11 +1,13 @@
 #include "smart_data.hpp"
 #include "../communicator.hpp"
-#include "../observe/conditional.hpp"
+#include "../protocol.hpp"
 #include "../message.hpp"
 #include "../utils/periodic_thread.hpp"
 #include "../utils/position.hpp"
 #include <iostream>
 #include <unordered_set>
+#include <thread>
+#include <atomic>
 
 template<typename Transducer>
 class ResponsiveSmartData : public SmartData {
@@ -16,18 +18,27 @@ public:
     typedef typename Unit::Get<UNIT>::Type Value;
 
 public:
-    ResponsiveSmartData(Communicator* comm) : _comm(comm), _port(Transducer::PORT) {
-        // O Transducer deve definir uma porta específica para este SmartData, que será usada para receber os dados
-        // Depois, o SmartData se registra como observador nessa porta para receber os dados do Transducer
-        attach_comm(comm, _port);
+    ResponsiveSmartData(Protocol* channel, Protocol::Address addr) : communicator(channel, addr) {
+        
+    }
+
+    void start() override {
+        _thread = std::thread(&InterestedSmartData::run, this);
+    }
+
+    void stop() override {
+        _running = false; // Sinaliza para a thread parar
+        if (_thread.joinable()) {
+            _thread.join(); // Aguarda a thread terminar
+        }
     }
 
     void run() {
         // Este método pode ser chamado para iniciar o processamento do SmartData, se necessário
         // Por exemplo, pode ser usado para configurar timers, iniciar threads, etc.
-        while (true) {
+        while (_running) {
             Message msg;
-            if (_comm->receive(&msg) && msg.msg_type == 0 /* Interest */) {
+            if (communicator.receive(&msg) && msg.msg_type == 0 /* Interest */) {
                 uint64_t period;
                 std::memcpy(&period, msg.data(), sizeof(uint64_t));
                 if (_active_periods.find(period) == _active_periods.end()) {
@@ -54,17 +65,13 @@ public:
         resp_msg.set_data_type(UNIT);
         std::memcpy(resp_msg.data(), &_value, sizeof(Value));
         resp_msg.set_size(sizeof(Value));
-        _comm->send(resp_msg);
-    }
-
-    void attach_comm(Communicator* comm, Protocol::Port port) {
-        // port deve ser a porta associada a este SmartData (definida pelo Transducer)
-        _comm->attach(this, port);
+        communicator.send(resp_msg);
     }
 
 private:
-    Communicator* _comm;
-    Protocol::Port _port; // porta associada a este SmartData, definida pelo Transducer
+    Communicator communicator;
     std::unordered_set<uint64_t> _active_periods; // conjunto de períodos para os quais já existem threads ativas enviando respostas
-    Value _value; //
+    Value _value;
+    std::thread _thread;
+    std::atomic<bool> _running{true};
 };
