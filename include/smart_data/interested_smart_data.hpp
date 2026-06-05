@@ -65,14 +65,6 @@ public:
         _comm->send(&interest_msg); // Envia em broadcast
     }
 
-    void update(Protocol::Port p, Buffer<Ethernet::Frame>* buf) override {
-        // Processa o buffer recebido e atualiza os dados conforme necessário
-        // (a implementação específica dependerá do formato dos dados recebidos e do que o SmartData precisa fazer com eles)
-        // Exemplo: extrair o valor do payload, converter para o tipo numérico correto, etc.
-
-        // Depois de processar, libera o buffer
-        free(buf);
-    }
 private:
     Communicator* _comm;
     uint64_t _period; // período de interesse para este SmartData

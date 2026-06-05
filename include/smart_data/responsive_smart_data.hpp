@@ -5,7 +5,7 @@
 #include <unordered_set>
 
 template<typename Transducer>
-class ResponsiveSmartData : public SmartData, ConditionalObserver<Buffer<Ethernet::Frame>, Protocol::Port> {
+class ResponsiveSmartData : public SmartData {
     friend Transducer;
 
 public:
@@ -40,15 +40,7 @@ public:
         // port deve ser a porta associada a este SmartData (definida pelo Transducer)
         _comm->attach(this, port);
     }
-
-    void update(Protocol::Port p, Buffer<Ethernet::Frame>* buf) override {
-        // Processa o buffer recebido e atualiza os dados conforme necessário
-        // (a implementação específica dependerá do formato dos dados recebidos e do que o SmartData precisa fazer com eles)
-        // Exemplo: extrair o valor do payload, converter para o tipo numérico correto, etc.
-
-        // Depois de processar, libera o buffer
-        free(buf);
-    }
+    
 private:
     Communicator* _comm;
     Protocol::Port _port; // porta associada a este SmartData, definida pelo Transducer
