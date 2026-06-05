@@ -2,6 +2,7 @@
 #include "smart_data.hpp"
 #include "../communicator.hpp"
 #include "../protocol.hpp"
+#include "../ethernet.hpp"
 #include "../message.hpp"
 #include "../utils/position.hpp"
 #include <iostream>
@@ -15,8 +16,9 @@ public:
     static const unsigned long UNIT = _Unit::UNIT;
     // typedef typename Unit::Get<UNIT>::Type Value; (pode ser útil para acessar o tipo de dado numérico correspondente à unidade, se necessário)
 public:
-    InterestedSmartData(Protocol* channel, Protocol::Address addr, uint64_t period) : communicator(channel, addr), _period(period) {
+    InterestedSmartData(Protocol* channel, Ethernet::Address mac, uint64_t period) : _period(period) {
         // O SmartData se registra como observador na porta associada à unidade de interesse para receber os dados
+        communicator = Communicator(channel, Protocol::Address{mac, static_cast<Protocol::Port>(UNIT)});
     }
 
     /*

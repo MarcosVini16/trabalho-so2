@@ -1,6 +1,7 @@
 #include "smart_data.hpp"
 #include "../communicator.hpp"
 #include "../protocol.hpp"
+#include "../ethernet.hpp"
 #include "../message.hpp"
 #include "../utils/periodic_thread.hpp"
 #include "../utils/position.hpp"
@@ -18,8 +19,9 @@ public:
     typedef typename Unit::Get<UNIT>::Type Value;
 
 public:
-    ResponsiveSmartData(Protocol* channel, Protocol::Address addr) : communicator(channel, addr) {
-        
+    ResponsiveSmartData(Protocol* channel, Ethernet::Address mac) {
+        // O SmartData se registra como observador na porta associada à unidade de interesse para receber os dados
+        communicator = Communicator(channel, Protocol::Address{mac, static_cast<Protocol::Port>(UNIT)});
     }
 
     void start() override {
