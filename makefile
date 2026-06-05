@@ -157,3 +157,7 @@ fix_multipass:
 	@echo ">>> corrigindo permissões do Multipass (requer sudo)"
 	@chmod -R 755 ~/trabalho-so2
 	@sudo chown -R ubuntu:ubuntu ~/trabalho-so2
+
+test_thread:
+	@echo ">>> testando periodic_thread (deve imprimir 50 vezes com ~100ms de intervalo)"
+	@g++ -std=c++20 thread_test.cpp -o thread_test
