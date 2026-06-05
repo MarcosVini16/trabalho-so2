@@ -12,3 +12,4 @@ rita:
 - requisitar instantaneamente o ptp ao mudar o quadrante
 - fazer o ptp com intervalo variável
 - acelerar o modulo de kernel
+- fazer veículos entrarem e saírem durante a execução

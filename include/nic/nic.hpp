@@ -22,6 +22,9 @@ public:
     template<typename... Args>
     NIC(Args&&... args) : E(std::forward<Args>(args)...) {
         _address = this->read_address();
+        if constexpr (requires { E::start(); }) {
+            E::start();
+        }
         if constexpr (requires { this->set_handle_cb(nullptr); }) {
             this->set_handle_cb([this](void* buf, size_t len) {
                 this->_handle(buf, len);

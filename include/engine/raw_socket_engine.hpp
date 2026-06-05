@@ -50,8 +50,10 @@ class RawSocketEngine : public Engine {
             addr.sll_ifindex  = _ifindex;
             if(bind(_fd, reinterpret_cast<struct sockaddr*>(&addr), sizeof(addr)) < 0)
                 throw std::runtime_error("bind() falhou");
-
-            // 5. inicia thread de recepção
+        }
+        
+        void start() {
+            // chamado pela NIC
             _thread = std::thread([this]{ _receive_loop(); });
         }
 
