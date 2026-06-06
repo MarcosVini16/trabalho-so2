@@ -7,8 +7,8 @@
 class SmartData {
 public:
 
-    virtual start() = 0;
-    virtual stop() = 0;
+    virtual void  start() = 0;
+    virtual void stop() = 0;
     /*
      * Codificação de unidades inspirada no IEEE 1451 e no Smart Data do EPOS.
      *
@@ -31,10 +31,10 @@ public:
         using Code = uint32_t;
         // Campo com valor de 2 bits que indica o tipo de dado numérico (I32, I64, F32, F64).
         enum NumType : uint8_t {
-            I32 = 0,
-            I64 = 1,
-            F32 = 2,
-            D64 = 3,
+            I32 = 0 << 29,
+            I64 = 1 << 29,
+            F32 = 2 << 29,
+            D64 = 3 << 29,
             NUM = D64 // Máscara para acessar o campo de tipo numérico
         };
 
@@ -73,41 +73,52 @@ public:
         static constexpr Code SI_BIT   = 1u << 31; // Bit 31
         static constexpr int EXP       = 4; // Valor de deslocamento para o expoente (expoente real = exp+4)
 
-        template<int _MOD, int _SR, int _RAD, int _M, int _KG, int _S, int _A, int _K, int _MOL, int _CD>
+        template<NumType _NUM, int _MOD, int _SR, int _RAD, int _M, int _KG, int _S, int _A, int _K, int _MOL, int _CD>
         class SIUnit {
         public:
-            enum: Code { UNIT = SI_BIT | _MOD | ((_SR + EXP) << SR_POS) | ((_RAD + EXP) << RAD_POS) | ((_M + EXP) << M_POS) | ((_KG + EXP) << KG_POS) | ((_S + EXP) << S_POS) | ((_A + EXP) << A_POS) | ((_K + EXP) << K_POS) | ((_MOL + EXP) << MOL_POS) | ((_CD + EXP) << CD_POS)};
+            enum: Code { UNIT = SI_BIT | _NUM |  _MOD | ((_SR + EXP) << SR_POS) | ((_RAD + EXP) << RAD_POS) | ((_M + EXP) << M_POS) | ((_KG + EXP) << KG_POS) | ((_S + EXP) << S_POS) | ((_A + EXP) << A_POS) | ((_K + EXP) << K_POS) | ((_MOL + EXP) << MOL_POS) | ((_CD + EXP) << CD_POS)};
         };
 
         // Physical quantities likely to be used in the project
         enum Quantity: Code {
-            //                                mod,     sr,    rad,      m,     kg,      s,      A,      K,    mol,     cd           unidade SI correspondente
-            Acceleration            = SIUnit<DIR,     +0,     +0,     +1,     +0,     -2,     +0,     +0,     +0,     +0>::UNIT, // m/s2
-            Angle                   = SIUnit<DIR,     +0,     +1,     +0,     +0,     +0,     +0,     +0,     +0,     +0>::UNIT, // rad
-            Angular_Velocity        = SIUnit<DIR,     +0,     +1,     +0,     +0,     -1,     +0,     +0,     +0,     +0>::UNIT, // rad/s
-            Area                    = SIUnit<DIR,     +0,     +0,     +2,     +0,     +0,     +0,     +0,     +0,     +0>::UNIT, // m2
-            Current                 = SIUnit<DIR,     +0,     +0,     +0,     +0,     +0,     +1,     +0,     +0,     +0>::UNIT, // Ampere
+            //                               num  mod,     sr,    rad,      m,     kg,      s,      A,      K,    mol,     cd           unidade SI correspondente
+            Acceleration            = SIUnit<D64, DIR,     +0,     +0,     +1,     +0,     -2,     +0,     +0,     +0,     +0>::UNIT, // m/s2
+            Angle                   = SIUnit<D64, DIR,     +0,     +1,     +0,     +0,     +0,     +0,     +0,     +0,     +0>::UNIT, // rad
+            Angular_Velocity        = SIUnit<D64, DIR,     +0,     +1,     +0,     +0,     -1,     +0,     +0,     +0,     +0>::UNIT, // rad/s
+            Area                    = SIUnit<D64, DIR,     +0,     +0,     +2,     +0,     +0,     +0,     +0,     +0,     +0>::UNIT, // m2
+            Current                 = SIUnit<D64, DIR,     +0,     +0,     +0,     +0,     +0,     +1,     +0,     +0,     +0>::UNIT, // Ampere
             Electric_Current        = Current,
-            Force                   = SIUnit<DIR,     +0,     +0,     +1,     +1,     -2,     +0,     +0,     +0,     +0>::UNIT, // Newton
-            Humidity                = SIUnit<DIR,     +0,     +0,     -3,     +1,     +0,     +0,     +0,     +0,     +0>::UNIT, // kg/m3
-            Length                  = SIUnit<DIR,     +0,     +0,     +1,     +0,     +0,     +0,     +0,     +0,     +0>::UNIT, // m
-            Luminous_Intensity      = SIUnit<DIR,     +0,     +0,     +0,     +0,     +0,     +0,     +0,     +0,     +1>::UNIT, // cd
-            Mass                    = SIUnit<DIR,     +0,     +0,     +0,     +1,     +0,     +0,     +0,     +0,     +0>::UNIT, // kg
-            Mass                    = SIUnit<DIR,     +0,     +0,     +0,     +1,     +0,     +0,     +0,     +0,     +0>::UNIT, // kg
-            Power                   = SIUnit<DIR,     +0,     +0,     +2,     +1,     -3,     +0,     +0,     +0,     +0>::UNIT, // Watt
-            Pressure                = SIUnit<DIR,     +0,     +0,     -1,     +1,     -2,     +0,     +0,     +0,     +0>::UNIT, // Pascal
-            Velocity                = SIUnit<DIR,     +0,     +0,     +1,     +0,     -1,     +0,     +0,     +0,     +0>::UNIT, // m/s
-            Sound_Intensity         = SIUnit<DIR,     +0,     +0,     +0,     +1,     -3,     +0,     +0,     +0,     +0>::UNIT, // W/m2
-            Temperature             = SIUnit<DIR,     +0,     +0,     +0,     +0,     +0,     +0,     +1,     +0,     +0>::UNIT, // Kelvin
-            Time                    = SIUnit<DIR,     +0,     +0,     +0,     +0,     +1,     +0,     +0,     +0,     +0>::UNIT, // s
-            Speed                   = Velocity,
-            Volume                  = SIUnit<DIR,     +0,     +0,     +3,     +0,     +0,     +0,     +0,     +0,     +0>::UNIT, // m3
-            Voltage                 = SIUnit<DIR,     +0,     +0,     +2,     +1,     -3,     -1,     +0,     +0,     +0>::UNIT, // Volt
-            Water_Flow              = SIUnit<DIR,     +0,     +0,     +3,     +0,     -1,     +0,     +0,     +0,     +0>::UNIT, // m3/s
-            Frequency               = SIUnit<DIR,     +0,     +0,     +0,     +0,     -1,     +0,     +0,     +0,     +0>::UNIT, // Hz
+            Force                   = SIUnit<D64, DIR,     +0,     +0,     +1,     +1,     -2,     +0,     +0,     +0,     +0>::UNIT, // Newton
+            Humidity                = SIUnit<D64, DIR,     +0,     +0,     -3,     +1,     +0,     +0,     +0,     +0,     +0>::UNIT, // kg/m3
+            Length                  = SIUnit<D64, DIR,     +0,     +0,     +1,     +0,     +0,     +0,     +0,     +0,     +0>::UNIT, // m
+            Luminous_Intensity      = SIUnit<D64, DIR,     +0,     +0,     +0,     +0,     +0,     +0,     +0,     +0,     +1>::UNIT, // cd
+            Mass                    = SIUnit<D64, DIR,     +0,     +0,     +0,     +1,     +0,     +0,     +0,     +0,     +0>::UNIT, // kg
+            Power                   = SIUnit<D64, DIR,     +0,     +0,     +2,     +1,     -3,     +0,     +0,     +0,     +0>::UNIT, // Watt (kg.m2/s3)
+            Pressure                = SIUnit<D64, DIR,     +0,     +0,     -1,     +1,     -2,     +0,     +0,     +0,     +0>::UNIT, // Pascal (kg/m.s2)
+            Velocity                = SIUnit<D64, DIR,     +0,     +0,     +1,     +0,     -1,     +0,     +0,     +0,     +0>::UNIT, // m/s
+            Sound_Intensity         = SIUnit<D64, DIR,     +0,     +0,     +0,     +1,     -3,     +0,     +0,     +0,     +0>::UNIT, // W/m2 (kg/s3)
 
-            Ratio                   = SIUnit<LOG_DIV, -4,     -4,     -4,     -4,     -4,     -4,     -4,     -4,     -4>::UNIT, // não é SI, um valor adimensional (pode ser > 1)
-            Percent                 = SIUnit<LOG_DIV, -4,     -4,     -4,     -4,     -4,     -4,     -4,     -4,     -3>::UNIT, // não é SI, um valor adimensional representando uma porcentagem < 1 (1% = 0.01) - pode ser útil para combustível, bateria, etc.
+            Temperature             = SIUnit<D64, DIR,     +0,     +0,     +0,     +0,     +0,     +0,     +1,     +0,     +0>::UNIT, // Kelvin
+            Time                    = SIUnit<D64, DIR,     +0,     +0,     +0,     +0,     +1,     +0,     +0,     +0,     +0>::UNIT, // s
+            Speed                   = Velocity,
+            Volume                  = SIUnit<D64, DIR,     +0,     +0,     +3,     +0,     +0,     +0,     +0,     +0,     +0>::UNIT, // m3
+            Voltage                 = SIUnit<D64, DIR,     +0,     +0,     +2,     +1,     -3,     -1,     +0,     +0,     +0>::UNIT, // Volt
+            Water_Flow              = SIUnit<D64, DIR,     +0,     +0,     +3,     +0,     -1,     +0,     +0,     +0,     +0>::UNIT, // m3/s
+            Frequency               = SIUnit<D64,DIR,     +0,     +0,     +0,     +0,     -1,     +0,     +0,     +0,     +0>::UNIT, // Hz
+
+            Ratio                   = SIUnit<D64, LOG_DIV, -4,     -4,     -4,     -4,     -4,     -4,     -4,     -4,     -4>::UNIT, // não é SI, um valor adimensional (pode ser > 1)
+            Percent                 = SIUnit<D64, LOG_DIV, -4,     -4,     -4,     -4,     -4,     -4,     -4,     -4,     -3>::UNIT, // não é SI, um valor adimensional representando uma porcentagem < 1 (1% = 0.01) - pode ser útil para combustível, bateria, etc.
+        };
+
+        template<Code UNIT_VAL>
+        struct Get {
+            // Como você só usa SI (sem digital), basta dispatchar pelo campo NUM.
+            using Type =
+                std::conditional_t<(UNIT_VAL & NUM) == I32, int32_t,
+                std::conditional_t<(UNIT_VAL & NUM) == I64, int64_t,
+                std::conditional_t<(UNIT_VAL & NUM) == F32, float,
+                std::conditional_t<(UNIT_VAL & NUM) == D64, double,
+                void>>>>;
         };
 
     }__attribute__((packed));

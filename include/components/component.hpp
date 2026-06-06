@@ -37,10 +37,9 @@ public:
     virtual add_smart_datas() = 0; 
 
     void start_smart_datas() {
-    // Configurações iniciais do componente, se necessário
-    for (auto& sd : smart_data_units) {
-        sd->start(); // Inicia o processamento de cada SmartData associado a este componente
-    }
+        for (auto& sd : smart_data_units) {
+            sd->start(); // Inicia o processamento de cada SmartData associado a este componente
+        }
     }
 
 protected:

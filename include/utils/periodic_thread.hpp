@@ -16,17 +16,6 @@
  * - stop() é idempotente e pode ser chamado de qualquer thread.
  *
  * Uso típico (de dentro de ResponsiveSmartData, quando chega um Interest):
- *
- *     auto task = [this]() {
- *         Value v = Transducer::sense();
- *         Message resp;
- *         resp.set_msg_type(1);             // Response
- *         resp.set_data_type(UNIT);
- *         resp.set_origin(Position::quadrant());
- *         std::memcpy(resp.data(), &v, sizeof(v));
- *         resp.set_size(sizeof(v));
- *         _comm->send(&resp);
- *     };
  *     _thread = std::make_unique<PeriodicThread>(std::move(task), period_us);
  */
 class PeriodicThread {
