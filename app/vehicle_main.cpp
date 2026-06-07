@@ -17,6 +17,9 @@
 #include "../include/utils/stats.hpp"
 #include "../include/components/CompA.hpp"
 #include "../include/components/CompB.hpp"
+#include "../include/components/CompC.hpp"
+#include "../include/components/CompD.hpp"
+#include "../include/components/CompE.hpp"
 
 // ---------------------------------------------------------------------------
 // Sinal de parada total (visível para todos os filhos pós-fork)
@@ -72,12 +75,35 @@ void run_compB(key_t key, Ethernet::Address mac, const std::string& iface) {
     //std::cout << "[compB] saindo...\n";
 }
 
-// void run_actuator(key_t key, Ethernet::Address mac, const std::string& iface) {
-//     //std::cout << "[actuator] pid=" << getpid() << "\n";
-//     Actuator a(Protocol::Address{mac, Ports::ACTUATOR}, key, mac);
-//     a.run();
-//     //std::cout << "[actuator] saindo...\n";
-// }
+void run_compC(key_t key, Ethernet::Address mac, const std::string& iface) {
+    //std::cout << "[compC] pid=" << getpid() << "\n";
+    CompC c(key, mac);
+    c.setup();
+    while(!g_stop) {
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+    }
+    //std::cout << "[compC] saindo...\n";
+}
+
+void run_compD(key_t key, Ethernet::Address mac, const std::string& iface) {
+    //std::cout << "[compD] pid=" << getpid() << "\n";
+    CompD d(key, mac);
+    d.setup();
+    while(!g_stop) {
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+    }
+    //std::cout << "[compD] saindo...\n";
+}
+
+void run_compE(key_t key, Ethernet::Address mac, const std::string& iface) {
+    //std::cout << "[compE] pid=" << getpid() << "\n";
+    CompE e(key, mac);
+    e.setup();
+    while(!g_stop) {
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+    }
+    //std::cout << "[compE] saindo...\n";
+}
 
 void run_time_client(key_t key, Ethernet::Address mac, const std::string& iface) {
     //std::cout << "[time_client] pid=" << getpid() << "\n";
@@ -218,6 +244,9 @@ int main(int argc, char* argv[]) {
     // spawn(run_time_client);
     spawn(run_compA);
     spawn(run_compB);
+    spawn(run_compC);
+    spawn(run_compD);
+    spawn(run_compE);
     spawn(run_time_client);
 
     // pequena pausa para os filhos registrarem na shm antes do pai enviar
