@@ -21,7 +21,7 @@ public:
 
     using SDVector = std::vector<std::unique_ptr<SmartData>>;
     Component(key_t key, Ethernet::Address mac)
-        : nic(key, mac), protocol(&nic) {
+        : nic(key, mac), protocol(&nic), _mac(mac) {
             add_smart_datas(); // Método para adicionar SmartData específicos de cada componente
             start_smart_datas(); // Inicia o processamento dos SmartData associados a este componente
     }
@@ -34,7 +34,7 @@ public:
     }
 
     // Método para adicionar SmartData específicos de cada componente, a ser implementado pelas subclasses
-    virtual add_smart_datas() = 0; 
+    virtual void add_smart_datas() = 0; 
 
     void start_smart_datas() {
         for (auto& sd : smart_data_units) {
@@ -47,4 +47,5 @@ protected:
     Protocol protocol; // Protocolo de comunicação
     key_t clock_key; // chave para o segmento de memória compartilhada do relógio (pode ser útil para componentes que precisam acessar o relógio sincronizado)
     SDVector smart_data_units; // lista de SmartData associados a este componente (pode ser útil para gerenciar o ciclo de vida dos SmartData)
+    Ethernet::Address _mac; // endereço MAC deste componente (pode ser útil para identificação e comunicação)
 };

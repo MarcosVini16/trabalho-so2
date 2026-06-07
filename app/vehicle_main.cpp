@@ -17,6 +17,8 @@
 #include "../include/components/time_client.hpp"
 #include "../include/utils/ports.hpp"
 #include "../include/utils/stats.hpp"
+#include "../include/components/CompA.hpp"
+#include "../include/components/CompB.hpp"
 
 // ---------------------------------------------------------------------------
 // Sinal de parada total (visível para todos os filhos pós-fork)
@@ -50,6 +52,26 @@ void run_sensor(key_t key, Ethernet::Address mac, const std::string& iface) {
     Sensor s(Protocol::Address{mac, Ports::SENSOR}, key, mac);
     s.run();
     //std::cout << "[sensor] saindo...\n";
+}
+
+void run_compA(key_t key, Ethernet::Address mac, const std::string& iface) {
+    //std::cout << "[compA] pid=" << getpid() << "\n";
+    CompA a(key, mac);
+    a.start_smart_datas();
+    while(!g_stop) {
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+    }
+    //std::cout << "[compA] saindo...\n";
+}
+
+void run_compB(key_t key, Ethernet::Address mac, const std::string& iface) {
+    //std::cout << "[compB] pid=" << getpid() << "\n";
+    CompB b(key, mac);
+    b.start_smart_datas();
+    while(!g_stop) {
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+    }
+    //std::cout << "[compB] saindo...\n";
 }
 
 void run_actuator(key_t key, Ethernet::Address mac, const std::string& iface) {
@@ -193,9 +215,11 @@ int main(int argc, char* argv[]) {
         children.push_back(pid);
     };
 
-    spawn(run_sensor);
-    spawn(run_actuator);
-    spawn(run_time_client);
+    // spawn(run_sensor);
+    // spawn(run_actuator);
+    // spawn(run_time_client);
+    spawn(run_compA);
+    spawn(run_compB);
 
     // pequena pausa para os filhos registrarem na shm antes do pai enviar
     std::this_thread::sleep_for(std::chrono::milliseconds(50));

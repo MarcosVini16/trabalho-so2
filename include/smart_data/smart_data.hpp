@@ -9,6 +9,7 @@ public:
 
     virtual void  start() = 0;
     virtual void stop() = 0;
+    virtual ~SmartData() = default;
     /*
      * Codificação de unidades inspirada no IEEE 1451 e no Smart Data do EPOS.
      *

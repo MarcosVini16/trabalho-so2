@@ -10,10 +10,10 @@
 #include <thread>
 #include <atomic>
 
-template<typename _Unit>
+template<SmartData::Unit::Code UNIT_CODE>
 class InterestedSmartData : public SmartData {
 public:
-    static const unsigned long UNIT = _Unit::UNIT;
+    static constexpr SmartData::Unit::Code UNIT = UNIT_CODE; // Código da unidade
     // typedef typename Unit::Get<UNIT>::Type Value; (pode ser útil para acessar o tipo de dado numérico correspondente à unidade, se necessário)
 public:
     InterestedSmartData(Protocol* channel, Ethernet::Address mac, uint64_t period) : _period(period) {
@@ -51,7 +51,7 @@ public:
                 // Timeout no receive, verificar se já passou muito tempo desde o último Response
                 clock_gettime(CLOCK_REALTIME, &ts);
                 uint64_t now = ts.tv_sec * 1000000000ull + ts.tv_nsec;
-                if (now - _last_response_time > 2 * _period) {
+                if (now - _last_response_time > 2000000000ull) { // 2 segundos em nanosegundos
                     std::cout << "No Response received for unit " << UNIT << " in the last " << _period << " ns, resending Interest\n";
                     send_interest();
                     _last_response_time = now; // Atualiza o timestamp para evitar reenvios excessivos
