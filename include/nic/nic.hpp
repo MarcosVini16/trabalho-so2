@@ -88,11 +88,13 @@ public:
 
 private:
     void _handle(void* raw, size_t len) override {
+        std::cout << "[nic] frame chegou...\n";
         auto* frame = static_cast<Ethernet::Frame*>(raw);
 
         uint16_t etype = ntohs(frame->type);
 
         if (!Protocol::verifica_quadrante(frame)) {
+            std::cout << "[nic] quadrante errado!\n";
             return;
         }
 

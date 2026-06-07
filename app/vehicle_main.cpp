@@ -225,7 +225,10 @@ int main(int argc, char* argv[]) {
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
     // ----- processo pai vira gateway no modo normal -----
-    run_normal(gw);
+    // run_normal(gw);
+
+    while(!g_stop) {
+    }
 
     g_stop = 1;
     std::cout << "[main] aguardando filhos terminarem...\n";
