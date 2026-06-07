@@ -28,7 +28,7 @@ public:
     bool send(const Message* msg) {
         return _channel->send(
             _address,
-            Protocol::Address::BROADCAST(),
+            Protocol::Address{Ethernet::Address::BROADCAST(), _address.port},
             msg->data(),
             msg->size()
         ) > 0;

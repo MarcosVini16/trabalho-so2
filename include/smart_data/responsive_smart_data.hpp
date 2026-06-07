@@ -1,3 +1,4 @@
+#pragma once
 #include "smart_data.hpp"
 #include "../communicator.hpp"
 #include "../protocol.hpp"
@@ -9,6 +10,7 @@
 #include <unordered_set>
 #include <thread>
 #include <atomic>
+#include <vector>
 
 template<typename Transducer>
 class ResponsiveSmartData : public SmartData {
@@ -19,13 +21,14 @@ public:
     typedef typename Unit::Get<UNIT>::Type Value;
 
 public:
-    ResponsiveSmartData(Protocol* channel, Ethernet::Address mac) {
+    ResponsiveSmartData(Protocol* channel, Ethernet::Address mac):
+     communicator(channel, Protocol::Address{mac, static_cast<Protocol::Port>(UNIT)}) {
         // O SmartData se registra como observador na porta associada à unidade de interesse para receber os dados
-        communicator = Communicator(channel, Protocol::Address{mac, static_cast<Protocol::Port>(UNIT)});
+        std::cout << "Responsive Iniciado\n";
     }
 
     void start() override {
-        _thread = std::thread(&InterestedSmartData::run, this);
+        _thread = std::thread(&ResponsiveSmartData::run, this);
     }
 
     void stop() override {
@@ -40,8 +43,9 @@ public:
         // Por exemplo, pode ser usado para configurar timers, iniciar threads, etc.
         while (_running) {
             Message msg;
-            if (communicator.receive(&msg) && msg.msg_type == 0 /* Interest */) {
+            if (communicator.receive(&msg) && msg.msg_type() == 0 /* Interest */) {
                 uint64_t period;
+                std::cout << "Recebi interest de periodo " << (int)period << " microsegundos.\n";
                 std::memcpy(&period, msg.data(), sizeof(uint64_t));
                 if (_active_periods.find(period) == _active_periods.end()) {
                     _active_periods.insert(period);
@@ -49,6 +53,7 @@ public:
                         send_response();
                     };
                     auto thread = std::make_unique<PeriodicThread>(std::move(task), period);
+                    _periodic_threads.push_back(std::move(thread));
                 }
             }
         }
@@ -67,12 +72,14 @@ public:
         resp_msg.set_data_type(UNIT);
         std::memcpy(resp_msg.data(), &_value, sizeof(Value));
         resp_msg.set_size(sizeof(Value));
-        communicator.send(resp_msg);
+        communicator.send(&resp_msg);
+        std::cout << "Response enviado...\n";
     }
 
 private:
     Communicator communicator;
     std::unordered_set<uint64_t> _active_periods; // conjunto de períodos para os quais já existem threads ativas enviando respostas
+    std::vector<std::unique_ptr<PeriodicThread>> _periodic_threads;
     Value _value;
     std::thread _thread;
     std::atomic<bool> _running{true};

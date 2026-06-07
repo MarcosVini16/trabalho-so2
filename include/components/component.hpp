@@ -22,8 +22,6 @@ public:
     using SDVector = std::vector<std::unique_ptr<SmartData>>;
     Component(key_t key, Ethernet::Address mac)
         : nic(key, mac), protocol(&nic), _mac(mac) {
-            add_smart_datas(); // Método para adicionar SmartData específicos de cada componente
-            start_smart_datas(); // Inicia o processamento dos SmartData associados a este componente
     }
 
     ~Component() {
@@ -31,6 +29,11 @@ public:
         for (auto& sd : smart_data_units) {
             sd->stop(); // Para o processamento de cada SmartData associado a este componente
         }
+    }
+
+    void setup() {
+        add_smart_datas(); // Método para adicionar SmartData específicos de cada componente
+        start_smart_datas(); // Inicia o processamento dos SmartData associados a este componente
     }
 
     // Método para adicionar SmartData específicos de cada componente, a ser implementado pelas subclasses

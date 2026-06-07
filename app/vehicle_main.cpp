@@ -12,9 +12,9 @@
 #include <string>
 #include <fstream>
 #include "../include/vehicle.hpp"
-#include "../include/components/sensor.hpp"
-#include "../include/components/actuator.hpp"
-#include "../include/components/time_client.hpp"
+// #include "../include/components/sensor.hpp"
+// #include "../include/components/actuator.hpp"
+// #include "../include/components/time_client.hpp"
 #include "../include/utils/ports.hpp"
 #include "../include/utils/stats.hpp"
 #include "../include/components/CompA.hpp"
@@ -47,17 +47,17 @@ Stats g_stats;
 // Cada uma constrói seus objetos APÓS o fork — nunca antes.
 // ---------------------------------------------------------------------------
 
-void run_sensor(key_t key, Ethernet::Address mac, const std::string& iface) {
-    //std::cout << "[sensor] pid=" << getpid() << "\n";
-    Sensor s(Protocol::Address{mac, Ports::SENSOR}, key, mac);
-    s.run();
-    //std::cout << "[sensor] saindo...\n";
-}
+// void run_sensor(key_t key, Ethernet::Address mac, const std::string& iface) {
+//     //std::cout << "[sensor] pid=" << getpid() << "\n";
+//     Sensor s(Protocol::Address{mac, Ports::SENSOR}, key, mac);
+//     s.run();
+//     //std::cout << "[sensor] saindo...\n";
+// }
 
 void run_compA(key_t key, Ethernet::Address mac, const std::string& iface) {
     //std::cout << "[compA] pid=" << getpid() << "\n";
     CompA a(key, mac);
-    a.start_smart_datas();
+    a.setup();
     while(!g_stop) {
         std::this_thread::sleep_for(std::chrono::seconds(1));
     }
@@ -67,26 +67,26 @@ void run_compA(key_t key, Ethernet::Address mac, const std::string& iface) {
 void run_compB(key_t key, Ethernet::Address mac, const std::string& iface) {
     //std::cout << "[compB] pid=" << getpid() << "\n";
     CompB b(key, mac);
-    b.start_smart_datas();
+    b.setup();
     while(!g_stop) {
         std::this_thread::sleep_for(std::chrono::seconds(1));
     }
     //std::cout << "[compB] saindo...\n";
 }
 
-void run_actuator(key_t key, Ethernet::Address mac, const std::string& iface) {
-    //std::cout << "[actuator] pid=" << getpid() << "\n";
-    Actuator a(Protocol::Address{mac, Ports::ACTUATOR}, key, mac);
-    a.run();
-    //std::cout << "[actuator] saindo...\n";
-}
+// void run_actuator(key_t key, Ethernet::Address mac, const std::string& iface) {
+//     //std::cout << "[actuator] pid=" << getpid() << "\n";
+//     Actuator a(Protocol::Address{mac, Ports::ACTUATOR}, key, mac);
+//     a.run();
+//     //std::cout << "[actuator] saindo...\n";
+// }
 
-void run_time_client(key_t key, Ethernet::Address mac, const std::string& iface) {
-    //std::cout << "[time_client] pid=" << getpid() << "\n";
-    TimeClient tc(Protocol::Address{mac, Ports::TIME_CLIENT}, key,  mac, iface);
-    tc.run();
-    //std::cout << "[time_client] saindo...\n";
-}
+// void run_time_client(key_t key, Ethernet::Address mac, const std::string& iface) {
+//     //std::cout << "[time_client] pid=" << getpid() << "\n";
+//     TimeClient tc(Protocol::Address{mac, Ports::TIME_CLIENT}, key,  mac, iface);
+//     tc.run();
+//     //std::cout << "[time_client] saindo...\n";
+// }
 
 // ---------------------------------------------------------------------------
 // Modos do processo pai (gateway)

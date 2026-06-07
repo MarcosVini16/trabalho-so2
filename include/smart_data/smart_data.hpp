@@ -1,4 +1,6 @@
+#pragma once
 #include <cstdint>
+
 
 /*
  * Definições base para o Smart Data, um formato compacto para representar 
@@ -31,7 +33,7 @@ public:
         // O campo de código é o valor inteiro de 32 bits que representa a unidade, incluindo os diversos campos de informação.
         using Code = uint32_t;
         // Campo com valor de 2 bits que indica o tipo de dado numérico (I32, I64, F32, F64).
-        enum NumType : uint8_t {
+        enum NumType : Code {
             I32 = 0 << 29,
             I64 = 1 << 29,
             F32 = 2 << 29,

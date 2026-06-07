@@ -1,7 +1,9 @@
 #pragma once
 
 #include "component.hpp"
+#include "../communicator.hpp"
 #include "../utils/ptp_frame.hpp"
+#include "../utils/ports.hpp"
 #include "../engine/raw_socket_engine.hpp"
 #include "../utils/stats.hpp"
 #include "../utils/position.hpp"
@@ -31,7 +33,8 @@ public:
         Ethernet::Address mac,
         const std::string& iface
     )
-        : Component(address, key, mac),
+        : Component(key, mac),
+          communicator(&protocol, Protocol::Address{mac, Ports::TIME_CLIENT}),
           rs_nic(iface),
           _seq(0)
           // a semente do rng é o último byte do MAC
@@ -43,7 +46,7 @@ public:
         // basicamente (preserva o endereço MAC)
         _seq_base = static_cast<uint32_t>(mac.bytes[5]) << 24;
         _seq = _seq_base;
-
+        
         protocol.attach_nic(&rs_nic);
     }
 
@@ -268,8 +271,27 @@ public:
         std::cout << "=======================\n";
     }
 
+    /*
+     * @brief Envia uma mensagem para um destino específico.
+     * @param msg A mensagem a ser enviada.
+     * @return true se a mensagem foi enviada com sucesso, false caso contrário.
+    */
+    bool send(const Message& msg) {
+        return communicator.send(&msg);
+    }
+
+    /*
+     * @brief Recebe uma mensagem, bloqueando até que uma mensagem esteja disponível.
+     * @param msg Referência para um objeto Message onde a mensagem recebida será armazenada.
+     * @return true se a mensagem foi recebida com sucesso, false caso contrário.
+    */
+    bool receive(Message& msg) {
+        return communicator.receive(&msg);
+    }
+
 private:
     NIC<RawSocketEngine> rs_nic;
+    Communicator communicator;
 
     uint32_t _seq;
     uint32_t _seq_base;
