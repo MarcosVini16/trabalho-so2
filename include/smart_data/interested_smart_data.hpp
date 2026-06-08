@@ -38,6 +38,21 @@ public:
         _running = false; // Sinaliza para a thread parar
         if (_thread.joinable()) {
             _thread.join(); // Aguarda a thread terminar
+            
+            // escalona por tipo para evitar mistura de prints
+            std::this_thread::sleep_for(std::chrono::milliseconds((UNIT & 0xF) * 50));
+
+            // imprime estatisticas
+            std::cout << "\n===== SMARTDATA STATS =====\n";
+            std::cout << "Responses recebidos (" << UNIT << "): " << _response_count << "\n";
+            if (_response_count > 0) {
+                std::cout << "Last value: " << _last_value << "\n";
+                std::cout << "Average:    " << (_sum / _response_count) << "\n";
+            } else {
+                std::cout << "Last value: N/A\n";
+                std::cout << "Average:    N/A\n";
+            }
+            std::cout << "===========================\n";
         }
     }
 
@@ -61,6 +76,12 @@ public:
             if (msg.size() < sizeof(ResponseMsg)) continue;
             ResponseMsg* resp = (ResponseMsg*)msg.data();
             if (resp->kind != RESPONSE) continue;
+
+            // estatisticas
+            _response_count++;
+            _last_value = resp->value;
+            _sum += resp->value;
+
             _last_response_time = resp->timestamp;
             std::cout << "Recebi Response para unidade " << UNIT 
                     << " valor=" << resp->value << "\n";
@@ -88,4 +109,9 @@ private:
     uint64_t _last_response_time; // timestamp do último Response recebido, para controle de timeout e reenvio de Interest
     std::thread _thread; // thread para rodar o loop de recebimento e controle de timeout
     std::atomic<bool> _running{true}; // flag para controle de execução da thread, se necessário
+
+    // para estatisticas
+    int _response_count = 0;
+    double _last_value = 0.0;
+    double _sum = 0.0;
 };

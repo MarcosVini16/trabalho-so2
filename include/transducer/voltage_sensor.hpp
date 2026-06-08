@@ -8,7 +8,13 @@
 class VoltageSensor : public Transducer<SmartData::Unit::Voltage> {
 public:
     using Value = typename SmartData::Unit::Get<SmartData::Unit::Voltage>::Type; // Tipo de dado numérico correspondente à unidade de voltagem
-    Value static sense() {
-        return 12.0f; // Retorna uma voltagem fixa de 12 V para fins de teste
+    static Value sense() {
+        static bool seeded = false;
+        if (!seeded) {
+            srand(time(nullptr) ^ (SmartData::Unit::Voltage & 0xFFFF));
+            seeded = true;
+        }
+        // VoltageSensor - voltagem entre 11V e 14V
+        return 11.0 + (rand() % 30) / 10.0;
     }
 };

@@ -8,7 +8,13 @@
 class Velocimeter : public Transducer<SmartData::Unit::Velocity> {
 public:
     using Value = typename SmartData::Unit::Get<SmartData::Unit::Velocity>::Type; // Tipo de dado numérico correspondente à unidade de velocidade
-    Value static sense() {
-        return 15.0f; // Retorna uma velocidade fixa de 15 m/s para fins de teste
+    static Value sense() {
+        static bool seeded = false;
+        if (!seeded) {
+            srand(time(nullptr) ^ (SmartData::Unit::Velocity & 0xFFFF));
+            seeded = true;
+        }
+        // Velocimeter - velocidade entre 0 e 30 m/s (0 a 108 km/h)
+        return (rand() % 300) / 10.0;
     }
 };
