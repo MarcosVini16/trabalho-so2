@@ -299,7 +299,12 @@ public:
      * @return true se a mensagem foi enviada com sucesso, false caso contrário.
     */
     bool send(const Message& msg) {
-        return communicator.send(&msg);
+        return protocol.send(
+            communicator.address(),
+            Protocol::Address::BROADCAST(),
+            msg.data(),
+            msg.size()
+        ) > 0;
     }
 
     /*
