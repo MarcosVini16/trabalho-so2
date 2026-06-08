@@ -97,9 +97,10 @@ run: initramfs
 	@mkdir -p logs/rsu logs/vehicle
 	@sh -c ' \
 		for i in 0 1 2 3; do \
+			mac=$$(printf "00:00:00:00:00:F%x" $$i); \
 			$(QEMU) $(NETDEV) \
-				-device virtio-net-device,netdev=net0,mac=00:00:00:00:00:FC \
-				--append "root=/dev/ram role=rsu quadrant=$$i" \
+				-device virtio-net-device,netdev=net0,mac=$$mac \
+				--append "root=/dev/ram role=rsu quadrant=$$i timeout=60" \
 				> logs/rsu/rsu$$i.log 2>&1 & \
 		done; \
 		sleep 3; \
