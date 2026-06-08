@@ -16,7 +16,7 @@ public:
     CompA(key_t key, Ethernet::Address mac) : Component(key, mac) {}
     void add_smart_datas() override {
         // Adiciona um InterestedSmartData para a unidade de temperatura, com um período de 1 segundo (1000000000 nanosegundos)
-        smart_data_units.push_back(std::make_unique<InterestedSmartData<SmartData::Unit::Temperature>>(&protocol, _mac, 1000000000ull));
+        smart_data_units.push_back(std::make_unique<InterestedSmartData<SmartData::Unit::Temperature>>(&protocol, _mac, 1000000ull));
         // Adiciona um ResponsiveSmartData para a unidade de aceleração
         smart_data_units.push_back(std::make_unique<ResponsiveSmartData<Accelerometer>>(&protocol, _mac));
     }

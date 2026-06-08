@@ -29,7 +29,7 @@ INITRAMFS = initramfs.cpio
 # default não emula todas, causando SIGILL no boot. Sem efeito em binários que
 # não usam essas extensões (caso x86 nativo), então é seguro deixar ativo
 # pra todo mundo do grupo e pro professor.
-QEMU_CPU = -cpu rv64,v=true,vext_spec=v1.0,zba=true,zbb=true,zbs=true,zfh=true,zfhmin=true,zicbom=true,zicboz=true,zicbop=true,zicond=true,zihintntl=true,zihintpause=true,zfa=true,zca=true,zcb=true,zcd=true
+QEMU_CPU = -cpu rv64,v=true,vext_spec=v1.0,zba=true,zbb=true,zbs=true,zfh=true,zfhmin=true,zicbom=true,zicboz=true,zicond=true,zihintntl=true,zihintpause=true,zfa=true,zca=true,zcb=true,zcd=true
 
 # parâmetros comuns do QEMU (sem --append; cada target define o seu)
 QEMU = qemu-system-riscv64 -m 128M -M virt -nographic $(QEMU_CPU) \

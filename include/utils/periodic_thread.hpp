@@ -4,6 +4,7 @@
 #include <chrono>
 #include <functional>
 #include <thread>
+#include <condition_variable>
 
 /*
  * PeriodicThread executa uma tarefa em intervalos regulares numa thread própria.
@@ -45,6 +46,7 @@ public:
 
     void stop() {
         _stop.store(true, std::memory_order_release);
+        _cv.notify_all();
     }
 
     // Permite alterar o período em runtime. A alteração entra em vigor a partir do próximo ciclo.
@@ -80,9 +82,8 @@ private:
                 next = now + period;
             }
 
-            // sleep_until permite ser acordada se o destrutor chegar
-            // (o stop é checado no topo do loop)
-            std::this_thread::sleep_until(next);
+            std::unique_lock<std::mutex> lk(_mtx);
+            _cv.wait_until(lk, next, [this]{ return _stop.load(); });
         }
     }
 
@@ -90,4 +91,7 @@ private:
     std::atomic<uint64_t>     _period_us;
     std::atomic<bool>         _stop;
     std::thread               _thread;
+
+    std::mutex _mtx;
+    std::condition_variable _cv;
 };

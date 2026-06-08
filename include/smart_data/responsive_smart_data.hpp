@@ -1,4 +1,5 @@
 #pragma once
+#include "messages.hpp"
 #include "smart_data.hpp"
 #include "../communicator.hpp"
 #include "../protocol.hpp"
@@ -43,18 +44,16 @@ public:
         // Por exemplo, pode ser usado para configurar timers, iniciar threads, etc.
         while (_running) {
             Message msg;
-            if (communicator.receive(&msg) && msg.msg_type() == 0 /* Interest */) {
-                uint64_t period;
-                std::cout << "Recebi interest de periodo " << (int)period << " microsegundos.\n";
-                std::memcpy(&period, msg.data(), sizeof(uint64_t));
-                if (_active_periods.find(period) == _active_periods.end()) {
-                    _active_periods.insert(period);
-                    auto task = [this]() {
-                        send_response();
-                    };
-                    auto thread = std::make_unique<PeriodicThread>(std::move(task), period);
-                    _periodic_threads.push_back(std::move(thread));
-                }
+            if (!communicator.receive(&msg)) continue;
+            if (msg.size() < sizeof(InterestMsg)) continue;
+            InterestMsg* interest = (InterestMsg*)msg.data();
+            if (interest->kind != INTEREST) continue;
+            uint64_t period = interest->period;
+            if (_active_periods.find(period) == _active_periods.end()) {
+                _active_periods.insert(period);
+                _periodic_threads.push_back(
+                    std::make_unique<PeriodicThread>([this]{ send_response(); }, period)
+                );
             }
         }
     }
@@ -65,15 +64,18 @@ public:
      * Esse método é chamado a uma thread
     */
     void send_response() {
-        _value = Transducer::sense(); // Obtém o valor sensoriado do Transducer (a implementação específica dependerá de como o Transducer é definido)
-        Message resp_msg;
-        resp_msg.set_origin(Position::quadrant()); // Define a origem da mensagem como o quadrante atual (pode ser útil para o receptor identificar de onde veio a resposta)
-        resp_msg.set_msg_type(1); // Response
-        resp_msg.set_data_type(UNIT);
-        std::memcpy(resp_msg.data(), &_value, sizeof(Value));
-        resp_msg.set_size(sizeof(Value));
-        communicator.send(&resp_msg);
-        std::cout << "Response enviado...\n";
+        timespec ts{};
+        clock_gettime(CLOCK_REALTIME, &ts);
+        ResponseMsg resp;
+        resp.kind = RESPONSE;
+        resp.origin = Position::quadrant();
+        resp.timestamp = ts.tv_sec * 1000000000ull + ts.tv_nsec;
+        resp.type = UNIT;
+        resp.value = (double)Transducer::sense();
+        Message msg;
+        std::memcpy(msg.data(), &resp, sizeof(ResponseMsg));
+        msg.set_size(sizeof(ResponseMsg));
+        communicator.send(&msg);
     }
 
 private:

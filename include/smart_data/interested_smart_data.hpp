@@ -1,4 +1,5 @@
 #pragma once
+#include "messages.hpp"
 #include "smart_data.hpp"
 #include "../communicator.hpp"
 #include "../protocol.hpp"
@@ -19,6 +20,9 @@ public:
     InterestedSmartData(Protocol* channel, Ethernet::Address mac, uint64_t period) : _period(period),
         communicator(channel, Protocol::Address{mac, static_cast<Protocol::Port>(UNIT)})
     {
+        timespec ts{};
+        clock_gettime(CLOCK_REALTIME, &ts);
+        _last_response_time = ts.tv_sec * 1000000000ull + ts.tv_nsec;
         std::cout << "Interested inicializado\n";
     }
 
@@ -38,39 +42,44 @@ public:
     }
 
     void run() {
-        timespec ts{};
         send_interest();
         while (_running) {
             Message msg;
-            if (communicator.receive(&msg)) {
-                if (msg.msg_type() == 1 /* Response */) {
-                    clock_gettime(CLOCK_REALTIME, &ts);
-                    _last_response_time = ts.tv_sec * 1000000000ull + ts.tv_nsec; // Atualiza o timestamp do último Response recebido (em nanosegundos)
-                    std::cout << "Recebi mensagem para a unidade " << UNIT << " no tempo " << _last_response_time << " ns\n";
-                }
-            } else {
-                // Timeout no receive, verificar se já passou muito tempo desde o último Response
+            if (!communicator.receive(&msg)) {
+                // timeout - verifica se precisa reenviar
+                timespec ts{};
                 clock_gettime(CLOCK_REALTIME, &ts);
                 uint64_t now = ts.tv_sec * 1000000000ull + ts.tv_nsec;
-                if (now - _last_response_time > 2000000000ull) { // 2 segundos em nanosegundos
-                    std::cout << "No Response received for unit " << UNIT << " in the last " << _period << " ns, resending Interest\n";
+                if (now - _last_response_time > 2000000000ull) {
+                    std::cout << "No Response received for unit " << UNIT 
+                            << " in the last " << _period << " ns, resending Interest\n";
                     send_interest();
-                    _last_response_time = now; // Atualiza o timestamp para evitar reenvios excessivos
+                    _last_response_time = now;
                 }
+                continue;
             }
+            if (msg.size() < sizeof(ResponseMsg)) continue;
+            ResponseMsg* resp = (ResponseMsg*)msg.data();
+            if (resp->kind != RESPONSE) continue;
+            _last_response_time = resp->timestamp;
+            std::cout << "Recebi Response para unidade " << UNIT 
+                    << " valor=" << resp->value << "\n";
         }
     }
 
     void send_interest() {
-        // Cria e envia uma mensagem de Interest em broadcast para solicitar os dados do Transducer associado a esta unidade
-        // A mensagem deve conter o período de interesse (por exemplo, como um uint64_t no payload) para que o Transducer saiba com que frequência enviar as respostas
-        // O msg_type da mensagem pode ser definido como 0 para indicar que é um Interest
-        Message interest_msg;
-        interest_msg.set_origin(Position::quadrant()); // Quadrante atual
-        interest_msg.set_msg_type(0); // 0 = Interest
-        interest_msg.set_data_type(UNIT); // Tipo de dado enviado é o Unit Code do SmartData
-        std::memcpy(interest_msg.data(), &_period, sizeof(uint64_t)); // Copia o período para o payload da mensagem
-        communicator.send(&interest_msg); // Envia em broadcast
+        timespec ts{};
+        clock_gettime(CLOCK_REALTIME, &ts);
+        InterestMsg interest;
+        interest.kind = INTEREST;
+        interest.origin = Position::quadrant();
+        interest.timestamp = ts.tv_sec * 1000000000ull + ts.tv_nsec;
+        interest.type = UNIT;
+        interest.period = _period;
+        Message msg;
+        std::memcpy(msg.data(), &interest, sizeof(InterestMsg));
+        msg.set_size(sizeof(InterestMsg));
+        communicator.send(&msg);
     }
 
 private:
