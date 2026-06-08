@@ -46,8 +46,7 @@ public:
         start_smart_datas(); // Inicia o processamento dos SmartData associados a este componente
     }
 
-    // Método para adicionar SmartData específicos de cada componente, a ser implementado pelas subclasses
-    virtual void add_smart_datas() = 0; 
+    void add_smart_datas() {}
 
     void start_smart_datas() {
         for (auto& sd : smart_data_units) {
