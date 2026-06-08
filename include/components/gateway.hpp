@@ -6,9 +6,11 @@
 #include "../protocol.hpp"
 #include "../communicator.hpp"
 #include "../utils/ports.hpp"
-
+#include "../smart_data/smart_data.hpp"
+#include "../ethernet.hpp"
 class Gateway {
 public:
+    using SDVector = std::vector<std::unique_ptr<SmartData>>;
     Gateway(const std::string& iface)
         : rs_nic(iface),
           protocol(&rs_nic),
@@ -39,6 +41,20 @@ public:
         return _communicator.address();
     }
 
+    void setup() {
+        add_smart_datas(); // Método para adicionar SmartData específicos de cada componente
+        start_smart_datas(); // Inicia o processamento dos SmartData associados a este componente
+    }
+
+    // Método para adicionar SmartData específicos de cada componente, a ser implementado pelas subclasses
+    virtual void add_smart_datas() = 0; 
+
+    void start_smart_datas() {
+        for (auto& sd : smart_data_units) {
+            sd->start(); // Inicia o processamento de cada SmartData associado a este componente
+        }
+    }
+
 private:
     static key_t _make_key(Ethernet::Address mac) {
         key_t k = 0;
@@ -49,4 +65,6 @@ private:
     Protocol protocol; // Protocolo de comunicação
     Communicator         _communicator; // Camada de comunicação para enviar/receber mensagem
     NIC<ShmEngine>      shm_nic; // NIC para comunicação com componentes locais
+    SDVector smart_data_units; // lista de SmartData associados a este componente (pode ser útil para gerenciar o ciclo de vida dos SmartData)
+    Ethernet::Address _mac; // endereço MAC deste componente (pode ser útil para identificação e comunicação)
 };

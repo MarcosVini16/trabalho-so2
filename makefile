@@ -38,6 +38,9 @@ QEMU = qemu-system-riscv64 -m 128M -M virt -nographic $(QEMU_CPU) \
 # rede virtual compartilhada por todas as VMs (mesma VLAN/mcast)
 NETDEV = -netdev socket,id=net0,mcast=230.0.0.1:1234
 
+# Define um valor padrão caso o Makefile seja chamado direto por `make vm1`
+TEST_SCENARIO ?= default
+
 .PHONY: all clean initramfs run shm_test ptp \
         vm1 vm2 vm3 vm4 vm_rsu
 
@@ -110,7 +113,7 @@ run: initramfs
 				mac=$$(printf "00:00:00:00:00:%02x" $$n); \
 				$(QEMU) $(NETDEV) \
 					-device virtio-net-device,netdev=net0,mac=$$mac \
-					--append "root=/dev/ram role=vehicle quadrant=$$q timeout=35" \
+					--append "root=/dev/ram role=vehicle quadrant=$$q timeout=35 TEST_SCENARIO=$(TEST_SCENARIO)" \
 					> logs/vehicle/vehicle$$n.log 2>&1 & \
 			done; \
 		done; \
@@ -121,7 +124,7 @@ run: initramfs
 				mac=$$(printf "00:00:00:00:00:%02x" $$n); \
 				$(QEMU) $(NETDEV) \
 					-device virtio-net-device,netdev=net0,mac=$$mac \
-					--append "root=/dev/ram role=vehicle quadrant=$$q timeout=25" \
+					--append "root=/dev/ram role=vehicle quadrant=$$q timeout=25 TEST_SCENARIO=$(TEST_SCENARIO)" \
 					> logs/vehicle/vehicle$$n.log 2>&1 & \
 			done; \
 		done; \
@@ -131,7 +134,7 @@ run: initramfs
 			mac=$$(printf "00:00:00:00:00:%02x" $$n); \
 			$(QEMU) $(NETDEV) \
 				-device virtio-net-device,netdev=net0,mac=$$mac \
-				--append "root=/dev/ram role=vehicle quadrant=$$q timeout=10" \
+				--append "root=/dev/ram role=vehicle quadrant=$$q timeout=10 TEST_SCENARIO=$(TEST_SCENARIO)" \
 				> logs/vehicle/vehicle$$n.log 2>&1 & \
 		done; \
 	'
@@ -139,7 +142,7 @@ run: initramfs
 	@echo ">>> veículo 1 em foreground..."
 	$(QEMU) $(NETDEV) \
 		-device virtio-net-device,netdev=net0,mac=00:00:00:00:00:01 \
-		--append "root=/dev/ram role=vehicle quadrant=0 timeout=40" \
+		--append "root=/dev/ram role=vehicle quadrant=0 timeout=40 TEST_SCENARIO=$(TEST_SCENARIO)" \
 		| tee logs/vehicle/vehicle1.log
 
 # VMs individuais — cada uma em terminal separado
@@ -152,22 +155,22 @@ vm_rsu: initramfs
 vm1: initramfs
 	$(QEMU) $(NETDEV) \
 		-device virtio-net-device,netdev=net0,mac=00:00:00:00:00:01 \
-		--append "root=/dev/ram role=vehicle"
+		--append "root=/dev/ram role=vehicle TEST_SCENARIO=$(TEST_SCENARIO)"
 
 vm2: initramfs
 	$(QEMU) $(NETDEV) \
 		-device virtio-net-device,netdev=net0,mac=00:00:00:00:00:02 \
-		--append "root=/dev/ram role=vehicle"
+		--append "root=/dev/ram role=vehicle TEST_SCENARIO=$(TEST_SCENARIO)"
 
 vm3: initramfs
 	$(QEMU) $(NETDEV) \
 		-device virtio-net-device,netdev=net0,mac=00:00:00:00:00:03 \
-		--append "root=/dev/ram role=vehicle"
+		--append "root=/dev/ram role=vehicle TEST_SCENARIO=$(TEST_SCENARIO)"
 
 vm4: initramfs
 	$(QEMU) $(NETDEV) \
 		-device virtio-net-device,netdev=net0,mac=00:00:00:00:00:04 \
-		--append "root=/dev/ram role=vehicle"
+		--append "root=/dev/ram role=vehicle TEST_SCENARIO=$(TEST_SCENARIO)"
 
 # --------------------------------------------------------------------------
 # Target PTP — compila com prints de debug do PTP
@@ -188,3 +191,12 @@ fix_multipass:
 test_thread:
 	@echo ">>> testando periodic_thread (deve imprimir 50 vezes com ~100ms de intervalo)"
 	@g++ -std=c++20 thread_test.cpp -o thread_test
+
+test_basic_local: initramfs
+	$(MAKE) vm1 TEST_SCENARIO=basic_local
+
+test_silent_producer: initramfs
+	$(MAKE) vm1 TEST_SCENARIO=silent_producer
+
+test_fanout_local: initramfs
+	$(MAKE) vm1 TEST_SCENARIO=fanout_local

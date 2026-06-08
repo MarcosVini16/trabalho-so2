@@ -20,6 +20,9 @@
 #include "../include/components/CompC.hpp"
 #include "../include/components/CompD.hpp"
 #include "../include/components/CompE.hpp"
+#include "../include/components/velocity_producer.hpp"
+#include "../include/components/velocity_consumer.hpp"
+#include "../include/components/temperature_consumer.hpp"
 
 // ---------------------------------------------------------------------------
 // Sinal de parada total (visível para todos os filhos pós-fork)
@@ -103,6 +106,33 @@ void run_compE(key_t key, Ethernet::Address mac, const std::string& iface) {
         std::this_thread::sleep_for(std::chrono::seconds(1));
     }
     //std::cout << "[compE] saindo...\n";
+}
+
+void run_velocity_producer(key_t key, Ethernet::Address mac, const std::string& iface) {
+    VelocityProducer vel_prod(key, mac);
+    vel_prod.setup();
+    while(!g_stop) {
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+    }
+    //std::cout << "[vel_prod] saindo...\n";
+}
+
+void run_velocity_consumer(key_t key, Ethernet::Address mac, const std::string& iface) {
+    VelocityConsumer vel_cons(key, mac);
+    vel_cons.setup();
+    while(!g_stop) {
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+    }
+    //std::cout << "[vel_cons] saindo...\n";
+}
+
+void run_temperature_consumer(key_t key, Ethernet::Address mac, const std::string& iface) {
+    TemperatureConsumer tem_cons(key, mac);
+    tem_cons.setup();
+    while(!g_stop) {
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+    }
+    //std::cout << "[vel_cons] saindo...\n";
 }
 
 void run_time_client(key_t key, Ethernet::Address mac, const std::string& iface) {
@@ -207,8 +237,14 @@ int main(int argc, char* argv[]) {
         }
     }
 
+    // no vehicle_main, após parsing dos argumentos básicos
+    std::string test_scenario = std::getenv("TEST_SCENARIO") 
+                                ? std::getenv("TEST_SCENARIO") : "default";
+
     std::cout << "[main] iface=" << iface 
             << " timeout=" << timeout_sec << "s argc=" << argc << "\n";
+    
+    std::cout << "[main] cenario = " <<  test_scenario << "\n";
 
     alarm(timeout_sec); // shutdown automático para testes
 
@@ -242,12 +278,31 @@ int main(int argc, char* argv[]) {
     // spawn(run_sensor);
     // spawn(run_actuator);
     // spawn(run_time_client);
-    spawn(run_compA);
-    spawn(run_compB);
-    spawn(run_compC);
-    spawn(run_compD);
-    spawn(run_compE);
-    spawn(run_time_client);
+    // spawn(run_compA);
+    // spawn(run_compB);
+    // spawn(run_compC);
+    // spawn(run_compD);
+    // spawn(run_compE);
+    // spawn(run_time_client);
+    if (test_scenario == "basic_local") {
+        spawn(run_velocity_producer);
+        spawn(run_velocity_consumer);
+    } else if (test_scenario == "silent_producer") {
+        spawn(run_velocity_producer);
+        spawn(run_temperature_consumer);
+    } else if (test_scenario == "fanout_local") {
+        spawn(run_velocity_producer);
+        spawn(run_velocity_consumer);
+        spawn(run_velocity_consumer);
+        spawn(run_velocity_consumer);
+    } else {
+        spawn(run_compA);
+        spawn(run_compB);
+        spawn(run_compC);
+        spawn(run_compD);
+        spawn(run_compE);
+        spawn(run_time_client);
+    }
 
     // pequena pausa para os filhos registrarem na shm antes do pai enviar
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
