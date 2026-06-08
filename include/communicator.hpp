@@ -19,7 +19,7 @@ public:
           _semaphore(0)
     {
         _channel->attach(this, address.port);
-        std::cout << "Me inscrevi na port: " << address.port << "\n";
+        //std::cout << "Me inscrevi na port: " << address.port << "\n";
     }
 
     ~Communicator() {
@@ -27,7 +27,7 @@ public:
     }
 
     bool send(const Message* msg) {
-        std::cout << "[communicator] send com port = " << (int)_address.port << "\n";
+        //std::cout << "[communicator] send com port = " << (int)_address.port << "\n";
         return _channel->send(
             _address,
             Protocol::Address{Ethernet::Address::BROADCAST(), _address.port},

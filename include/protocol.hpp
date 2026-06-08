@@ -76,15 +76,11 @@ class Protocol
         }
 
         ~Protocol() {
-            std::cout << "[protocol] destrutor iniciado\n";
-            // copia a lista antes de iterar para evitar invalidar o iterador
-            // auto nics_copy = _nics;
-            // for(auto* nic : nics_copy) {
-            //     nic->detach(this, PROTO);
-            // }
-            // _nics.clear();
-            //std::cout << "[protocol] destrutor concluido\n";
-            std::cout << "[protocol] destrutor concluido\n";
+            auto nics_copy = _nics;
+            for(auto* nic : nics_copy) {
+                nic->detach(this, PROTO);
+            }
+            _nics.clear();
         }
 
         // Multiple NICs
@@ -120,7 +116,7 @@ class Protocol
                 // monta — separa o Address em seus campos primitivos
                 pkt->header.src_port = htons(src.port);    // extrai a porta
                 pkt->header.dst_port = htons(dst.port);
-                std::cout << "[protocol] send com port = " << (int)pkt->header.dst_port << "\n";
+                //std::cout << "[protocol] send com port = " << (int)pkt->header.dst_port << "\n";
                 
                 uint8_t pos = get_quadrant();
                 if (pos == 255) {
@@ -196,7 +192,7 @@ class Protocol
             //std::cout << "[protocol] update chamado\n";
             auto* pkt = buf->data<Packet>();
             Port dst_port = ntohs(pkt->header.dst_port);
-            std::cout << "[protocol] dst_port=" << dst_port << "\n";
+            //std::cout << "[protocol] dst_port=" << dst_port << "\n";
             // Checa se foi shm (próprio endereço)
             
             if(dst_port == 0) {

@@ -22,11 +22,14 @@ public:
     template<typename... Args>
     NIC(Args&&... args) : E(std::forward<Args>(args)...) {
         _address = this->read_address();
-        if constexpr (requires { this->set_handle_cb(nullptr); }) {
-            this->set_handle_cb([this](void* buf, size_t len) {
-                this->_handle(buf, len);
-            });
-            this->start();
+        if constexpr (requires { E::start(); }) {
+            E::start();
+        }
+    }
+
+    ~NIC() {
+        if constexpr (requires { this->stop(); }) {
+            this->stop();
         }
     }
 
@@ -88,13 +91,13 @@ public:
 
 private:
     void _handle(void* raw, size_t len) override {
-        std::cout << "[nic] frame chegou...\n";
+        //std::cout << "[nic] frame chegou...\n";
         auto* frame = static_cast<Ethernet::Frame*>(raw);
 
         uint16_t etype = ntohs(frame->type);
 
         if (!Protocol::verifica_quadrante(frame)) {
-            std::cout << "[nic] quadrante errado!\n";
+            //std::cout << "[nic] quadrante errado!\n";
             return;
         }
 

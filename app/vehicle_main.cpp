@@ -12,9 +12,7 @@
 #include <string>
 #include <fstream>
 #include "../include/vehicle.hpp"
-// #include "../include/components/sensor.hpp"
-// #include "../include/components/actuator.hpp"
-// #include "../include/components/time_client.hpp"
+#include "../include/components/time_client.hpp"
 #include "../include/utils/ports.hpp"
 #include "../include/utils/stats.hpp"
 #include "../include/components/CompA.hpp"
@@ -81,12 +79,12 @@ void run_compB(key_t key, Ethernet::Address mac, const std::string& iface) {
 //     //std::cout << "[actuator] saindo...\n";
 // }
 
-// void run_time_client(key_t key, Ethernet::Address mac, const std::string& iface) {
-//     //std::cout << "[time_client] pid=" << getpid() << "\n";
-//     TimeClient tc(Protocol::Address{mac, Ports::TIME_CLIENT}, key,  mac, iface);
-//     tc.run();
-//     //std::cout << "[time_client] saindo...\n";
-// }
+void run_time_client(key_t key, Ethernet::Address mac, const std::string& iface) {
+    //std::cout << "[time_client] pid=" << getpid() << "\n";
+    TimeClient tc(Protocol::Address{mac, Ports::TIME_CLIENT}, key,  mac, iface);
+    tc.run();
+    //std::cout << "[time_client] saindo...\n";
+}
 
 // ---------------------------------------------------------------------------
 // Modos do processo pai (gateway)
@@ -220,6 +218,7 @@ int main(int argc, char* argv[]) {
     // spawn(run_time_client);
     spawn(run_compA);
     spawn(run_compB);
+    spawn(run_time_client);
 
     // pequena pausa para os filhos registrarem na shm antes do pai enviar
     std::this_thread::sleep_for(std::chrono::milliseconds(50));

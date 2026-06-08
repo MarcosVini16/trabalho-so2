@@ -94,26 +94,52 @@ initramfs: all $(KERNEL_MODULE)
 # O último veículo fica em foreground para você ver os logs.
 
 run: initramfs
-	@echo ">>> subindo 4 RSUs em background..."
-	@for i in 0 1 2 3; do \
-		$(QEMU) $(NETDEV) \
-			-device virtio-net-device,netdev=net0,mac=00:00:00:00:00:FC \
-			--append "root=/dev/ram role=rsu quadrant=$$i" \
-			> rsu$$i.log 2>&1 & \
-	done
+	@mkdir -p logs/rsu logs/vehicle
+	@sh -c ' \
+		for i in 0 1 2 3; do \
+			$(QEMU) $(NETDEV) \
+				-device virtio-net-device,netdev=net0,mac=00:00:00:00:00:FC \
+				--append "root=/dev/ram role=rsu quadrant=$$i" \
+				> logs/rsu/rsu$$i.log 2>&1 & \
+		done; \
+		sleep 3; \
+		for q in 0 1 2 3; do \
+			for i in 1 2; do \
+				n=$$(($$q * 5 + $$i + 1)); \
+				mac=$$(printf "00:00:00:00:00:%02x" $$n); \
+				$(QEMU) $(NETDEV) \
+					-device virtio-net-device,netdev=net0,mac=$$mac \
+					--append "root=/dev/ram role=vehicle quadrant=$$q timeout=35" \
+					> logs/vehicle/vehicle$$n.log 2>&1 & \
+			done; \
+		done; \
+		sleep 5; \
+		for q in 0 1 2 3; do \
+			for i in 3 4; do \
+				n=$$(($$q * 5 + $$i + 1)); \
+				mac=$$(printf "00:00:00:00:00:%02x" $$n); \
+				$(QEMU) $(NETDEV) \
+					-device virtio-net-device,netdev=net0,mac=$$mac \
+					--append "root=/dev/ram role=vehicle quadrant=$$q timeout=25" \
+					> logs/vehicle/vehicle$$n.log 2>&1 & \
+			done; \
+		done; \
+		sleep 10; \
+		for q in 0 1 2 3; do \
+			n=$$(($$q * 5 + 6)); \
+			mac=$$(printf "00:00:00:00:00:%02x" $$n); \
+			$(QEMU) $(NETDEV) \
+				-device virtio-net-device,netdev=net0,mac=$$mac \
+				--append "root=/dev/ram role=vehicle quadrant=$$q timeout=10" \
+				> logs/vehicle/vehicle$$n.log 2>&1 & \
+		done; \
+	'
 	@sleep 1
-	@echo ">>> subindo veículos 1..3 em background..."
-	@for i in 1 2 3; do \
-		$(QEMU) $(NETDEV) \
-			-device virtio-net-device,netdev=net0,mac=00:00:00:00:00:0$$i \
-			--append "root=/dev/ram role=vehicle" \
-			> vehicle$$i.log 2>&1 & \
-	done
-	@sleep 1
-	@echo ">>> subindo veículo 4 em foreground"
+	@echo ">>> veículo 1 em foreground..."
 	$(QEMU) $(NETDEV) \
-		-device virtio-net-device,netdev=net0,mac=00:00:00:00:00:04 \
-		--append "root=/dev/ram role=vehicle"
+		-device virtio-net-device,netdev=net0,mac=00:00:00:00:00:01 \
+		--append "root=/dev/ram role=vehicle quadrant=0 timeout=40" \
+		| tee logs/vehicle/vehicle1.log
 
 # VMs individuais — cada uma em terminal separado
 
@@ -151,7 +177,7 @@ ptp:
 
 # --------------------------------------------------------------------------
 clean:
-	rm -rf build $(INITRAMFS) rsu*.log vehicle*.log
+	rm -rf build $(INITRAMFS) logs/rsu/*.log logs/vehicle/*.log
 
 fix_multipass:
 	@echo ">>> corrigindo permissões do Multipass (requer sudo)"

@@ -20,7 +20,7 @@
 class RawSocketEngine : public Engine {
     public:
         RawSocketEngine(const std::string& iface) : _iface(iface), _running(true) {
-            std::cout << "[raw] processo " << getpid() << " iniciando na interface '" << iface << "'\n";
+            //std::cout << "[raw] processo " << getpid() << " iniciando na interface '" << iface << "'\n";
             // 1. abre o socket
             _fd = socket(AF_PACKET, SOCK_RAW, htons(0x8888));
             if(_fd < 0)
@@ -50,18 +50,26 @@ class RawSocketEngine : public Engine {
             addr.sll_ifindex  = _ifindex;
             if(bind(_fd, reinterpret_cast<struct sockaddr*>(&addr), sizeof(addr)) < 0)
                 throw std::runtime_error("bind() falhou");
+        }
 
-            // 5. inicia thread de recepção
+        void start() {
             _thread = std::thread([this]{ _receive_loop(); });
         }
 
-        ~RawSocketEngine() {
-            std::cout << "[raw] iniciando destrutor\n";
+        void stop() {
             _running = false;
-            close(_fd);         // fecha o socket para interromper o recv
+            shutdown(_fd, SHUT_RDWR);
+            close(_fd);
+            if (_thread.joinable())
+                _thread.join();
+        }
+
+        ~RawSocketEngine() {
+            _running = false;
+            shutdown(_fd, SHUT_RDWR);
+            close(_fd);
             if(_thread.joinable())
                 _thread.join();
-            std::cout << "[raw] processo " << getpid() << " saiu\n";
         }
 
         Ethernet::Address read_address() {

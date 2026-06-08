@@ -13,6 +13,7 @@
 #include <cstring>
 #include <sys/ipc.h>
 #include <sys/shm.h>
+#include <iomanip>
 
 #ifdef DEBUG_PTP
     #define PTP_LOG(x) std::cout << x
@@ -49,6 +50,12 @@ public:
         
         protocol.attach_nic(&rs_nic);
     }
+
+    ~TimeClient() {
+        protocol.detach_nic(&rs_nic);
+    }
+
+    void add_smart_datas() override {}
 
     void syncTime() 
     {
@@ -247,9 +254,13 @@ public:
 
         while (!g_stop)
         {
-            std::cout << "MEU QUADRANTE: " << (int)Position::quadrant() << "\n";
+            uint8_t q = Position::quadrant();
+            if (g_stats.first_quadrant == -1) g_stats.first_quadrant = q;
+            g_stats.last_quadrant = q;
+            g_stats.quadrant_count[q]++;
+
             syncTime();
-            // calcula a variação do offset
+
             int64_t delta = std::abs(g_stats.last_offset_ns - last_offset);
             last_offset = g_stats.last_offset_ns;
 
@@ -269,6 +280,17 @@ public:
         std::cout << "PTP timeouts: " << g_stats.ptp_sync_timeout << "\n";
         std::cout << "Ultimo offset: " << g_stats.last_offset_ns << " ns\n";
         std::cout << "=======================\n";
+
+        int total = g_stats.quadrant_count[0] + g_stats.quadrant_count[1]
+              + g_stats.quadrant_count[2] + g_stats.quadrant_count[3];
+        std::cout << "\n==== POSITION STATS ====\n";
+        std::cout << "First Quadrant: " << g_stats.first_quadrant << "\n";
+        std::cout << "Last Quadrant:  " << g_stats.last_quadrant << "\n";
+        for (int i = 0; i < 4; i++) {
+            float pct = total > 0 ? (100.0f * g_stats.quadrant_count[i] / total) : 0.0f;
+            std::cout << "Q" << i << ": " << std::fixed << std::setprecision(1) << pct << "%\n";
+        }
+        std::cout << "========================\n";
     }
 
     /*
