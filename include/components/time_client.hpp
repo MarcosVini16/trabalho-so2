@@ -261,16 +261,19 @@ public:
 
             syncTime();
 
-            int64_t delta = std::abs(g_stats.last_offset_ns - last_offset);
             last_offset = g_stats.last_offset_ns;
 
-            // calcula o intervalo baseado na volatilidade
-            if (delta < 1000000LL) {
-                interval_ms = std::min(interval_ms * 2, 1000);
-            } else {
-                interval_ms = std::max(interval_ms / 2, 500);
+            if (last_offset < ideal_floor)
+            {
+                // se o offset é muito pequeno, aumenta o intervalo (menos sincronizações, mais economia de recursos)
+                interval_ms = std::min(interval_ms + 100, 2000);
             }
-            // aplica
+            else if (last_offset > ideal_ceiling)
+            {
+                // se o offset é muito grande, diminui o intervalo (mais sincronizações, melhor precisão)
+                interval_ms = std::max(interval_ms - 100, 100);
+            } // se o offset está dentro do intervalo ideal, mantém o mesmo intervalo (bom equilíbrio entre precisão e economia de recursos)
+            
             std::this_thread::sleep_for(std::chrono::milliseconds(interval_ms));
 
         }
@@ -322,6 +325,9 @@ private:
 
     uint32_t _seq;
     uint32_t _seq_base;
+
+    uint64_t ideal_floor = 300000000; // Limite inferior do intervalo ideal (300ms)
+    uint64_t ideal_ceiling = 700000000; // Limite superior do intervalo ideal (700ms)
 
     bool _synced = false;
 };
