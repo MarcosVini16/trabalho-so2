@@ -15,6 +15,7 @@
 #include "../include/components/time_client.hpp"
 #include "../include/utils/ports.hpp"
 #include "../include/utils/stats.hpp"
+#include "../include/utils/position.hpp"
 #include "../include/components/CompA.hpp"
 #include "../include/components/CompB.hpp"
 #include "../include/components/CompC.hpp"
@@ -207,14 +208,8 @@ void run_normal(Gateway& gw) {
 int main(int argc, char* argv[]) {
 
     // no início do main, antes de tudo
-    std::ifstream f("/proc/position");
-    if (f) {
-        unsigned int q;
-        f >> q;
-        std::cout << "[main] quadrante inicial: " << q << "\n";
-    } else {
-        std::cerr << "[main] ERRO: /proc/position nao encontrado\n";
-    }
+    uint8_t q = Position::quadrant();
+    std::cout << "[main] quadrante inicial: " << (int)q << "\n";
 
     std::cout << "=== Vehicle main (com TimeClient) ===\n";
     setup_signals();
