@@ -13,8 +13,18 @@ ROLE=$(grep -oE 'role=[a-z]+' /proc/cmdline | cut -d= -f2)
 Q=$(grep -oE 'quadrant=[0-9]' /proc/cmdline | cut -d= -f2)
 T=$(grep -oE 'timeout=[0-9]+' /proc/cmdline | cut -d= -f2)
 
+echo ">>> /dev antes do insmod:"
+
 # carrega o módulo de posição
 insmod /position.ko quadrante=${Q:-0}
+
+echo ">>> retorno insmod: $?"
+
+echo ">>> /dev depois do insmod:"
+ls /dev/
+
+echo ">>> dmesg:"
+dmesg | tail -20
 
 case "$ROLE" in
     rsu) exec /rsu eth0 ${T:-60} ${Q:-0} ;;
