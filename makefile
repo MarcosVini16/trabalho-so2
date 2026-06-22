@@ -24,16 +24,10 @@ KERNEL_MODULE = kernel/position.ko
 # sistema de arquivos empacotado que a VM carrega na inicialização
 INITRAMFS = initramfs.cpio
 
-# CPU permissivo: habilita extensões ISA que toolchains modernos (em especial
-# Ubuntu ARM64 rodando em Mac/UTM) tendem a usar via libc estática. QEMU virt
-# default não emula todas, causando SIGILL no boot. Sem efeito em binários que
-# não usam essas extensões (caso x86 nativo), então é seguro deixar ativo
-# pra todo mundo do grupo e pro professor.
-QEMU_CPU = -cpu rv64,v=true,vext_spec=v1.0,zba=true,zbb=true,zbs=true,zfh=true,zfhmin=true,zicbom=true,zicboz=true,zicond=true,zihintntl=true,zihintpause=true,zfa=true,zca=true,zcb=true,zcd=true
-
-# parâmetros comuns do QEMU (sem --append; cada target define o seu)
-QEMU = qemu-system-riscv64 -m 128M -M virt -nographic $(QEMU_CPU) \
-       -kernel $(KERNEL_IMAGE) -initrd $(INITRAMFS)
+# parâmetros comuns do QEMU
+QEMU = qemu-system-riscv64 -m 128M -M virt -nographic \
+       -kernel $(KERNEL_IMAGE) -initrd $(INITRAMFS) \
+       --append "root=/dev/ram"
 
 # rede virtual compartilhada por todas as VMs (mesma VLAN/mcast)
 NETDEV = -netdev socket,id=net0,mcast=230.0.0.1:1234
