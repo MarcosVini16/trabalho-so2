@@ -1,73 +1,40 @@
+// observe/concurrent_observer.hpp
 #pragma once
-#include "../utils/semaphore.hpp"
-#include "../utils/list.hpp"
+#include "concurrent.hpp"    // de onde vêm Semaphore e List
+#include "conditional.hpp"
+#include <chrono>
 
-template<typename D, typename C = void> class ConcurrentObserver; // Forward declaration
+// Desacopla recepção de processamento: a thread que notifica só
+// enfileira + sinaliza; a thread dona consome bloqueando.
+template<typename D, typename C>
+class ConcurrentObserver : public ConditionalObserver<D, C> {
+public:
+    explicit ConcurrentObserver(C cond) : _condition(cond), _semaphore(0) {}
 
-// Concurrent_Observed is the base class for all classes that want to be observed by Concurrent_Observer
-template<typename D, typename C = void> class ConcurrentObserved {
-    friend class ConcurrentObserver<D, C>; // to allow ConcurrentObserver to call update() and access _observers
+    ~ConcurrentObserver() override {
+        while (!_data.empty()) delete _data.remove();   // drena o que sobrou
+    }
 
-    public:
-        using ObservedData = D;
-        using ObservingCondition = C;
-        using Observers = Ordered_List<ConcurrentObserver<D, C>, C>;
-    
-    public:
-        ConcurrentObserved() {}
-        ~ConcurrentObserved() {}
+    // chamado pela thread de recepção (Communicator::notify)
+    void update(C /*c*/, D* d) override {
+        _data.insert(d);
+        _semaphore.v();
+    }
 
-        // Attach and detach observers to the observed object based on the observing condition (C)
-        // (Is C being used here? It seems like we are not using C in the attach/detach functions. Should we consider using it to filter observers based on their observing condition?)
-        void attach(ConcurrentObserver<D, C> * o, C c) {
-            _observers.insert(o);
-        }
+    C condition() const override { return _condition; }
 
-        void detach(ConcurrentObserver<D, C> * o, C c) {
-            _observers.remove(o);
-        }
+    D* updated() {                                  // bloqueia até chegar algo
+        _semaphore.p();
+        return _data.empty() ? nullptr : _data.remove();
+    }
 
-        bool notify(C c, D * d) {
-            bool notified = false;
-            for(typename Observers::Iterator obs = _observers.begin(); obs != _observers.end(); obs++) {
-                if(obs->rank() == c) {
-                    obs->update(c, d);
-                    notified = true;
-                }
-            }
-            return notified;
-        }
-    private:
-        Observers _observers;
-};
+    D* updated_for(std::chrono::milliseconds t) {   // com timeout
+        if (!_semaphore.try_p_for(t)) return nullptr;
+        return _data.empty() ? nullptr : _data.remove();
+    }
 
-/*
- * A concurrent observer for observing changes in observed data.
- */
-template<typename D, typename C> class ConcurrentObserver {
-    friend class ConcurrentObserved<D, C>; // to allow ConcurrentObserved to call update() and access _data and _semaphore
-    public:
-        using ObservedData = D;
-        using ObservingCondition = C;
-    public:
-        ConcurrentObserver(): _semaphore(0) {}
-        ~ConcurrentObserver() {}
-
-        // This function will be called by the observed object when it wants to notify the observer of a change. It will insert the data into the _data list and release the semaphore to unblock any thread that is waiting for data in the updated() function.
-        virtual void update(C c, D * d) {
-            _data.insert(d);
-            _semaphore.v();
-        }
-
-        // This function will block until a notification is triggered and data is available in the _data list. It will return the data that was notified by the observed object.
-        D * updated() {
-            _semaphore.p();
-            return _data.remove();
-        }
-    private:
-        // Could use a counting_semaphore from c++20 (maybe change it later)
-        Semaphore _semaphore;
-        // List is a simple linked list implementation (need to be defined elsewhere) - couldn't we use std::list instead? 
-        // Note: The List class should be thread-safe since it will be accessed by multiple threads (ConcurrentObservers) when they call update() and updated().
-        List<D*> _data;
+private:
+    C          _condition;
+    Semaphore  _semaphore;
+    List<D*>   _data;
 };

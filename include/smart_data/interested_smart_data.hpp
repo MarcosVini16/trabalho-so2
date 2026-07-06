@@ -31,6 +31,7 @@ public:
      * Neste caso, inicia uma thread que ficará responsável por enviar Interests periodicamente e processar as respostas recebidas.
      */
     void start() override {
+        communicator.subscribe(this);
         _thread = std::thread(&InterestedSmartData::run, this);
     }
 
@@ -54,37 +55,27 @@ public:
             }
             std::cout << "===========================\n";
         }
+        communicator.unsubscribe(this);
     }
 
     void run() {
         send_interest();
         while (_running) {
-            Message msg;
-            if (!communicator.receive(&msg)) {
-                // timeout - verifica se precisa reenviar
-                timespec ts{};
-                clock_gettime(CLOCK_REALTIME, &ts);
-                uint64_t now = ts.tv_sec * 1000000000ull + ts.tv_nsec;
-                if (now - _last_response_time > 2000000000ull) {
-                    std::cout << "No Response received for unit " << UNIT 
-                            << " in the last " << _period << " ns, resending Interest\n";
-                    send_interest();
-                    _last_response_time = now;
-                }
+            Message* msg = this->updated_for(std::chrono::milliseconds(100));
+            if (!msg) {                          // timeout → mesma checagem de reenvio de antes
+                timespec ts{}; clock_gettime(CLOCK_REALTIME, &ts);
+                uint64_t now = ts.tv_sec*1000000000ull + ts.tv_nsec;
+                if (now - _last_response_time > 2000000000ull) { send_interest(); _last_response_time = now; }
                 continue;
             }
-            if (msg.size() < sizeof(ResponseMsg)) continue;
-            ResponseMsg* resp = (ResponseMsg*)msg.data();
-            if (resp->kind != RESPONSE) continue;
-
-            // estatisticas
-            _response_count++;
-            _last_value = resp->value;
-            _sum += resp->value;
-
-            _last_response_time = resp->timestamp;
-            std::cout << "Recebi Response para unidade " << UNIT 
-                    << " valor=" << resp->value << "\n";
+            if (msg->size() >= sizeof(ResponseMsg)) {
+                ResponseMsg* resp = (ResponseMsg*)msg->data();
+                if (resp->kind == RESPONSE) {
+                    _response_count++; _last_value = resp->value; _sum += resp->value;
+                    _last_response_time = resp->timestamp;
+                }
+            }
+            delete msg;                          // posse veio da fila
         }
     }
 

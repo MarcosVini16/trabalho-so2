@@ -9,9 +9,10 @@
 #include <iostream>
 
 class Communicator
-    : public ConditionalObserver<Buffer<Ethernet::Frame>,
-                                       Protocol::Port>
+    : public ConditionalObserver<Buffer<Ethernet::Frame>, Protocol::Port>,  // observa o Protocol
+      public ConditionalObserved<Message, Protocol::Port>                   // é observado pelos SmartData
 {
+    using SmartDataObserved = ConditionalObserved<Message, Protocol::Port>;
 public:
     Communicator(Protocol* channel, Protocol::Address address)
         : _channel(channel),
@@ -24,6 +25,14 @@ public:
 
     ~Communicator() {
         _channel->detach(this, _address.port);
+    }
+
+    // SmartData se registra aqui
+    void subscribe(ConditionalObserver<Message, Protocol::Port>* obs) {
+        SmartDataObserved::attach(obs, _address.port);
+    }
+    void unsubscribe(ConditionalObserver<Message, Protocol::Port>* obs) {
+        SmartDataObserved::detach(obs, _address.port);
     }
 
     bool send(const Message* msg) {
@@ -81,16 +90,11 @@ public:
         return msg->size() > 0;
     }
 
-    // ao chegar um frame novo, update é chamado pela thread de recepção
-    void update(Protocol::Port p, Buffer<Ethernet::Frame>* buf) override {
-        //std::cout << "[communicator] update chamado porta=" << p << "\n";
-
-        // copia os dados do frame para uma Message interna
-        // e libera o buffer da NIC imediatamente — não fica segurando o pool
+    // vindo do Protocol (thread de recepção)
+    void update(Protocol::Port /*p*/, Buffer<Ethernet::Frame>* buf) override {
         Message* msg = new Message();
         Protocol::Address from;
 
-        // pega o quadrante do header antes de chamar receive
         auto* pkt = buf->data<Protocol::Packet>();
         uint8_t q = pkt->header.src_quadrant;
 
@@ -99,9 +103,11 @@ public:
         msg->set_src(from.paddr);
         msg->set_origin(q);
 
-        _data.insert(msg);
-        _semaphore.v();
+        // repassa (push). Se ninguém consumir, não vaza.
+        if (msg->size() == 0 || !SmartDataObserved::notify(_address.port, msg))
+            delete msg;
     }
+
 
     Protocol::Port condition() const override {
         return _address.port;

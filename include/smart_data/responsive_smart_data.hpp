@@ -29,6 +29,7 @@ public:
     }
 
     void start() override {
+        communicator.subscribe(this);
         _thread = std::thread(&ResponsiveSmartData::run, this);
     }
 
@@ -37,24 +38,22 @@ public:
         if (_thread.joinable()) {
             _thread.join(); // Aguarda a thread terminar
         }
+        communicator.unsubscribe(this); 
     }
 
     void run() {
-        // Este método pode ser chamado para iniciar o processamento do SmartData, se necessário
-        // Por exemplo, pode ser usado para configurar timers, iniciar threads, etc.
         while (_running) {
-            Message msg;
-            if (!communicator.receive(&msg)) continue;
-            if (msg.size() < sizeof(InterestMsg)) continue;
-            InterestMsg* interest = (InterestMsg*)msg.data();
-            if (interest->kind != INTEREST) continue;
-            uint64_t period = interest->period;
-            if (_active_periods.find(period) == _active_periods.end()) {
-                _active_periods.insert(period);
-                _periodic_threads.push_back(
-                    std::make_unique<PeriodicThread>([this]{ send_response(); }, period)
-                );
+            Message* msg = this->updated_for(std::chrono::milliseconds(100));
+            if (!msg) continue;
+            if (msg->size() >= sizeof(InterestMsg)) {
+                InterestMsg* interest = (InterestMsg*)msg->data();
+                if (interest->kind == INTEREST) {
+                    uint64_t period = interest->period;
+                    if (_active_periods.insert(period).second)
+                        _periodic_threads.push_back(std::make_unique<PeriodicThread>([this]{ send_response(); }, period));
+                }
             }
+            delete msg;
         }
     }
 

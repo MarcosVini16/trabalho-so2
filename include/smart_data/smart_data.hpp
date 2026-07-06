@@ -6,7 +6,7 @@
  * Definições base para o Smart Data, um formato compacto para representar 
  * dados numéricos com unidades inspirado no IEEE 1451 e no Smart Data do EPOS.
  */
-class SmartData {
+class SmartData : public ConcurrentObserver<Message, Protocol::Port> {
 public:
 
     virtual void  start() = 0;
