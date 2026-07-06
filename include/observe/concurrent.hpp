@@ -1,6 +1,7 @@
 // observe/concurrent_observer.hpp
 #pragma once
-#include "concurrent.hpp"    // de onde vêm Semaphore e List
+#include "../utils/semaphore.hpp"
+#include "../utils/list.hpp"
 #include "conditional.hpp"
 #include <chrono>
 

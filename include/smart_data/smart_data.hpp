@@ -1,6 +1,6 @@
 #pragma once
 #include <cstdint>
-
+#include "../observe/concurrent.hpp"
 
 /*
  * Definições base para o Smart Data, um formato compacto para representar 
