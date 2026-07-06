@@ -46,16 +46,10 @@ public:
             std::this_thread::sleep_for(std::chrono::milliseconds((UNIT & 0xF) * 50));
 
             // imprime estatisticas
-            std::cout << "\n===== SMARTDATA STATS =====\n";
-            std::cout << "Responses recebidos (" << UNIT << "): " << _response_count << "\n";
-            if (_response_count > 0) {
-                std::cout << "Last value: " << _last_value << "\n";
-                std::cout << "Average:    " << (_sum / _response_count) << "\n";
-            } else {
-                std::cout << "Last value: N/A\n";
-                std::cout << "Average:    N/A\n";
-            }
-            std::cout << "===========================\n";
+            std::cout << "\n===== SMARTDATA STATS ===== | Responses recebidos (" << UNIT << "): " 
+            << _response_count << " | Last value: " << (_response_count > 0 ? std::to_string(_last_value) : "N/A") 
+            << " | Average: " << (_response_count > 0 ? std::to_string(_sum / _response_count) : "N/A") << " |\n";
+           
         }
         communicator.unsubscribe(this);
     }
