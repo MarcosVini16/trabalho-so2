@@ -22,8 +22,9 @@ public:
     typedef typename Unit::Get<UNIT>::Type Value;
 
 public:
-    ResponsiveSmartData(Protocol* channel, Ethernet::Address mac):
-     communicator(channel, Protocol::Address{mac, static_cast<Protocol::Port>(UNIT)}) {
+    ResponsiveSmartData(Protocol* channel, Ethernet::Address mac)
+        : SmartData(static_cast<Protocol::Port>(UNIT)),
+          communicator(channel, Protocol::Address{mac, static_cast<Protocol::Port>(UNIT)}) {
         // O SmartData se registra como observador na porta associada à unidade de interesse para receber os dados
         std::cout << "Responsive Iniciado\n";
     }

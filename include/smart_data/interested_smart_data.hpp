@@ -17,8 +17,10 @@ public:
     static constexpr SmartData::Unit::Code UNIT = UNIT_CODE; // Código da unidade
     // typedef typename Unit::Get<UNIT>::Type Value; (pode ser útil para acessar o tipo de dado numérico correspondente à unidade, se necessário)
 public:
-    InterestedSmartData(Protocol* channel, Ethernet::Address mac, uint64_t period) : _period(period),
-        communicator(channel, Protocol::Address{mac, static_cast<Protocol::Port>(UNIT)})
+    InterestedSmartData(Protocol* channel, Ethernet::Address mac, uint64_t period)
+        : SmartData(static_cast<Protocol::Port>(UNIT)),
+          communicator(channel, Protocol::Address{mac, static_cast<Protocol::Port>(UNIT)}),
+          _period(period)
     {
         timespec ts{};
         clock_gettime(CLOCK_REALTIME, &ts);

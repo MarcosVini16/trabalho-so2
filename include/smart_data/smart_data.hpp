@@ -8,7 +8,8 @@
  */
 class SmartData : public ConcurrentObserver<Message, Protocol::Port> {
 public:
-
+     explicit SmartData(Protocol::Port port)
+        : ConcurrentObserver<Message, Protocol::Port>(port) {}
     virtual void  start() = 0;
     virtual void stop() = 0;
     virtual ~SmartData() = default;
