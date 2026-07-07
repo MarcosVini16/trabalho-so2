@@ -3,6 +3,7 @@
 #include "nic/nic.hpp"
 #include "protocol.hpp"
 #include "communicator.hpp"
+#include "observe/endpoint.hpp"
 #include "utils/ptp_frame.hpp"
 #include <time.h> // Para clock_gettime()
 #include <unistd.h> // Para sleep()
@@ -28,6 +29,7 @@ class RSU {
             : nic(iface),
               protocol(&nic),
               communicator(&protocol, Protocol::Address{nic.address(), Ports::RSU}),
+              _endpoint(communicator),
               _quadrant(quadrant)
         {
             Protocol::set_quadrant(_quadrant);
@@ -43,7 +45,7 @@ class RSU {
         }
 
         bool receive(Message& msg) {
-            return communicator.receive(&msg);
+            return _endpoint.receive(&msg);
         }
 
         timespec get_time() {
@@ -105,5 +107,6 @@ class RSU {
         NIC<RawSocketEngine> nic; // NIC para comunicação com a rede externa
         Protocol protocol; // Protocolo de comunicação
         Communicator communicator; // Camada de comunicação para enviar/receber mensagem
+        Endpoint _endpoint; // observador bloqueante inscrito no communicator (receive())
         uint8_t _quadrant = 0;
 };

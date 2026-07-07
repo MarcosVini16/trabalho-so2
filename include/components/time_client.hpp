@@ -7,6 +7,7 @@
 #include "../engine/raw_socket_engine.hpp"
 #include "../utils/stats.hpp"
 #include "../utils/position.hpp"
+#include "../observe/endpoint.hpp"
 
 #include <time.h>
 #include <unistd.h>
@@ -35,8 +36,9 @@ public:
         const std::string& iface
     )
         : Component(key, mac),
-          communicator(&protocol, Protocol::Address{mac, Ports::TIME_CLIENT}),
           rs_nic(iface),
+          communicator(&protocol, Protocol::Address{mac, Ports::TIME_CLIENT}),
+          _endpoint(communicator),
           _seq(0)
           // a semente do rng é o último byte do MAC
           //_rng(static_cast<uint32_t>(mac.bytes[5]) * 12345)
@@ -313,12 +315,13 @@ public:
      * @return true se a mensagem foi recebida com sucesso, false caso contrário.
     */
     bool receive(Message& msg) {
-        return communicator.receive(&msg);
+        return _endpoint.receive(&msg);
     }
 
 private:
     NIC<RawSocketEngine> rs_nic;
     Communicator communicator;
+    Endpoint _endpoint;
 
     uint32_t _seq;
     uint32_t _seq_base;

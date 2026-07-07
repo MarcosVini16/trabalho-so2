@@ -1,42 +1,38 @@
 #pragma once
-#include "observe/concurrent.hpp"
 #include "observe/conditional.hpp"
 #include "message.hpp"
 #include "utils/buffer.hpp"
 #include "ethernet.hpp"
 #include "protocol.hpp"
-#include <chrono>
 #include <iostream>
 
+/*
+ * Communicator: nó puro da cadeia de observação, com UM comportamento só.
+ *  - Observa o Protocol (recebe frames via update()).
+ *  - É observado pelos consumidores (SmartData e Endpoints) via notify().
+ *
+ * Não tem mais fila/semáforo próprios: quem precisa de receive() bloqueante
+ * pluga um Endpoint (que é um ConcurrentObserver). update() só monta a
+ * Message e repassa; se ninguém está inscrito, descarta.
+ */
 class Communicator
-    : public ConditionalObserver<Buffer<Ethernet::Frame>, Protocol::Port>,  // observa o Protocol
-      public ConditionalObserved<Message, Protocol::Port>                   // é observado pelos SmartData
+    : public ConditionalObserver<Buffer<Ethernet::Frame>, Protocol::Port>,
+      public ConditionalObserved<Message, Protocol::Port>
 {
-    using SmartDataObserved = ConditionalObserved<Message, Protocol::Port>;
+    using Observed = ConditionalObserved<Message, Protocol::Port>;
 public:
     Communicator(Protocol* channel, Protocol::Address address)
         : _channel(channel),
-          _address(address),
-          _semaphore(0)
+          _address(address)
     {
         _channel->attach(this, address.port);
-        //std::cout << "Me inscrevi na port: " << address.port << "\n";
     }
 
     ~Communicator() {
         _channel->detach(this, _address.port);
     }
 
-    // SmartData se registra aqui
-    void subscribe(ConditionalObserver<Message, Protocol::Port>* obs) {
-        SmartDataObserved::attach(obs, _address.port);
-    }
-    void unsubscribe(ConditionalObserver<Message, Protocol::Port>* obs) {
-        SmartDataObserved::detach(obs, _address.port);
-    }
-
     bool send(const Message* msg) {
-        //std::cout << "[communicator] send com port = " << (int)_address.port << "\n";
         return _channel->send(
             _address,
             Protocol::Address{Ethernet::Address::BROADCAST(), _address.port},
@@ -66,35 +62,22 @@ public:
         ) > 0;
     }
 
-    bool receive(Message* msg) {
-        // bloqueia a thread até ter algum buffer na lista
-        // (o update acorda via _semaphore.v())
-        // _semaphore.p();
-        if (!_semaphore.try_p_for(std::chrono::milliseconds(100))) { // timeout para evitar bloqueio infinito (pode ser ajustado conforme necessário)
-            return false;
-        }
-
-        Message* internal = _data.empty() ? nullptr : _data.remove();
-
-        // verifica se a mensagem é válida
-        if(!internal) {
-            //std::cout << "[communicator] mensagem nula!\n";
-            msg->set_size(0);
-            return false;
-        }
-
-        // copia os dados para o msg do caller e libera a mensagem interna
-        //std::cout << "[communicator] mensagem removida da fila, size=" << internal->size() << "\n";
-        *msg = *internal;
-        delete internal;
-        return msg->size() > 0;
+    // Consumidores (SmartData, Endpoint) se inscrevem/desinscrevem aqui
+    void subscribe(ConditionalObserver<Message, Protocol::Port>* obs) {
+        Observed::attach(obs, _address.port);
+    }
+    void unsubscribe(ConditionalObserver<Message, Protocol::Port>* obs) {
+        Observed::detach(obs, _address.port);
     }
 
-    // vindo do Protocol (thread de recepção)
+    // ao chegar um frame novo, update é chamado pela thread de recepção
     void update(Protocol::Port /*p*/, Buffer<Ethernet::Frame>* buf) override {
+        // copia os dados do frame para uma Message interna e libera o buffer
+        // da NIC imediatamente — não fica segurando o pool
         Message* msg = new Message();
         Protocol::Address from;
 
+        // pega o quadrante do header antes de chamar receive
         auto* pkt = buf->data<Protocol::Packet>();
         uint8_t q = pkt->header.src_quadrant;
 
@@ -103,11 +86,12 @@ public:
         msg->set_src(from.paddr);
         msg->set_origin(q);
 
-        // repassa (push). Se ninguém consumir, não vaza.
-        if (msg->size() == 0 || !SmartDataObserved::notify(_address.port, msg))
+        // push: a posse vai pro observador que consumir.
+        // Se ninguém está inscrito (notify == false), descarta.
+        if (msg->size() == 0 || !Observed::notify(_address.port, msg)) {
             delete msg;
+        }
     }
-
 
     Protocol::Port condition() const override {
         return _address.port;
@@ -120,6 +104,4 @@ public:
 private:
     Protocol*         _channel;
     Protocol::Address _address;
-    Semaphore         _semaphore;
-    List<Message*>    _data; // lista de mensagens internas (dados já copiados do buffer da NIC)
 };
